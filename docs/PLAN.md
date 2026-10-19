@@ -84,13 +84,21 @@ The project is split into 7 phases; each task is one Claude Code session and one
 
 - [ ] Scan one QR label and record its format
 - [ ] Create the repo on GitHub, set up branch rules (`main` protected, merge via PR)
-- [ ] Next.js + TypeScript + Tailwind + shadcn/ui project
-- [ ] Local PostgreSQL via `docker-compose.yml`
-- [ ] Install Prisma, first empty migration
-- [ ] ESLint, Prettier, `.env.example`
-- [ ] Add `CLAUDE.md` and `docs/PLAN.md` to the repo
+- [x] Next.js + TypeScript + Tailwind + shadcn/ui project
+- [x] Local PostgreSQL via `docker-compose.yml`
+- [ ] Install Prisma, first empty migration (Prisma installed, migration not created yet)
+- [x] ESLint, Prettier, `.env.example`
+- [x] Add `CLAUDE.md` and `docs/PLAN.md` to the repo
 
 **Acceptance criterion:** `npm run dev` works, the database connects.
+
+**Status (2026-10-19):** `npm run dev` fails on the dev machine with `listen EACCES: permission denied 0.0.0.0:3000`.
+Cause: Windows' TCP dynamic port range starts at 1024 (should be 49152), so WSL/Hyper-V (WinNAT)
+reserves port blocks that include 3000 (`netsh interface ipv4 show excludedportrange protocol=tcp`
+shows 2964–3063). Resetting the range with `netsh int ipv4 set dynamic tcp start=49152 num=16384`
+(admin, after `wsl --shutdown` and `net stop winnat`) did not take effect — possibly a company
+policy (Intune/GPO). Next steps: retry and capture the netsh output / check with IT, or use another
+port meanwhile (`npm run dev -- -p 3100`; Entra redirect URI must match).
 
 ### Phase 1 — Database and sign-in
 
