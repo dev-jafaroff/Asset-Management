@@ -1,241 +1,206 @@
-# Asset Management Sistemi — İş Planı
+# Asset Management System — Work Plan
 
 Oct 12, 2026 · @Babek Cafarov
 
-## Məqsəd və əhatə dairəsi
+## Goal and scope
 
-Snipe-IT-i şirkətin ehtiyacına uyğun, sadə və kompakt daxili sistemlə əvəz etmək. Sistem Microsoft hesabı ilə giriş, Intune-dan avtomatik cihaz sinxronizasiyası və mövcud QR etiketlərin işləməyə davam etməsini təmin etməlidir.
+Replace Snipe-IT with a simple, compact internal system tailored to the company's needs. The system must provide sign-in with a Microsoft account, automatic device synchronization from Intune, and keep the existing QR labels working.
 
-**MVP-yə daxildir:**
+**In the MVP:**
 
-- Microsoft Entra ID ilə SSO və Entra qruplarına əsasən rollar
-- Asset-lər: yaratma, redaktə, siyahı, axtarış, filter
-- Checkout / checkin və hər asset-in tam tarixçəsi
-- Intune sinxronizasiyası (avtomatik və əl ilə işə salınan)
-- Snipe-IT-dən miqrasiya və köhnə QR kodların dəstəyi
-- Yeni QR generasiyası, etiket çapı və kamera ilə skan
+- SSO with Microsoft Entra ID and roles based on Entra groups
+- Assets: create, edit, list, search, filter
+- Checkout / checkin and full history for every asset
+- Intune synchronization (automatic and manually triggered)
+- Migration from Snipe-IT and support for legacy QR codes
+- New QR generation, label printing and camera scanning
 - CSV export
 
-**MVP-yə daxil deyil (sonraya):** lisenziyalar, aksesuarlar, consumables, komponentlər, audit planlaması, maintenance qeydləri, mobil tətbiq (React Native).
+**Not in the MVP (later):** licenses, accessories, consumables, components, audit scheduling, maintenance records, mobile app (React Native).
 
-## Texnologiya stack-i
+## Technology stack
 
-Bütün layihə TypeScript ilə bir Next.js tətbiqində yazılır: frontend və API eyni yerdə, hər şey Azure-da.
+The whole project is written in TypeScript as a single Next.js application: frontend and API in one place, everything on Azure.
 
-| Sahə | Seçim | Səbəb |
-| --- | --- | --- |
-| Framework | Next.js (App Router) + TypeScript | React bilikləriniz birbaşa işə yarayır, API ayrıca server tələb etmir |
-| UI | Tailwind CSS + shadcn/ui | Sürətli, səliqəli, tam idarə olunan komponentlər |
-| Cədvəllər | TanStack Table | Sorting, filter, pagination hazır |
-| Formlar | React Hook Form + Zod | Validasiya həm formda, həm API-də eyni sxemlə |
-| Baza | PostgreSQL | Əlaqəli data üçün ideal, Azure-da managed xidmət var |
-| ORM | Prisma | Tipli sorğular, migration-lar |
-| Auth | Auth.js + Microsoft Entra ID provider | SSO və qrup əsaslı rollar |
-| Intune | Microsoft Graph API (client credentials) | Fon sync, istifadəçi login olmadan |
-| QR | `qrcode` (yaratma), `html5-qrcode` (skan) | Yüngül və brauzerdə işləyir |
-| Repo və CI/CD | Azure DevOps Repos + Pipelines | Korporativ nəzarət, Azure-a birbaşa deploy |
-| Hosting | Azure App Service + Azure Database for PostgreSQL | Entra ilə eyni ekosistem |
-| Secret-lər | Azure Key Vault | Client secret-lər kodda saxlanılmır |
-| Lokal mühit | Docker (PostgreSQL) | Komandada eyni mühit |
+| Area           | Choice                                            | Reason                                                            |
+| -------------- | ------------------------------------------------- | ----------------------------------------------------------------- |
+| Framework      | Next.js (App Router) + TypeScript                 | Existing React knowledge applies directly, no separate API server |
+| UI             | Tailwind CSS + shadcn/ui                          | Fast, clean, fully controlled components                          |
+| Tables         | TanStack Table                                    | Sorting, filtering, pagination out of the box                     |
+| Forms          | React Hook Form + Zod                             | Same schema validates both the form and the API                   |
+| Database       | PostgreSQL                                        | Ideal for relational data, managed service available on Azure     |
+| ORM            | Prisma                                            | Typed queries, migrations                                         |
+| Auth           | Auth.js + Microsoft Entra ID provider             | SSO and group-based roles                                         |
+| Intune         | Microsoft Graph API (client credentials)          | Background sync without a signed-in user                          |
+| QR             | `qrcode` (generate), `html5-qrcode` (scan)        | Lightweight and runs in the browser                               |
+| Repo and CI/CD | GitHub + GitHub Actions                           | Simple setup, direct deploy to Azure                              |
+| Hosting        | Azure App Service + Azure Database for PostgreSQL | Same ecosystem as Entra                                           |
+| Secrets        | Azure Key Vault                                   | Client secrets are not stored in code                             |
+| Local env      | Docker (PostgreSQL)                               | Same environment for the whole team                               |
 
-## Arxitektura və əsas qərarlar
+## Architecture and key decisions
 
-Bütün məntiq bir Next.js tətbiqində işləyir; xaricdə yalnız Entra ID, Graph, PostgreSQL, Key Vault və miqrasiya üçün Snipe-IT var.
+All logic runs in one Next.js application; the only external pieces are Entra ID, Graph, PostgreSQL, Key Vault and, for migration, Snipe-IT.
 
-&#91;embedded content: Sistem arxitekturası · 1 tətbiq, 5 xarici xidmət\]
+[embedded content: System architecture · 1 application, 5 external services]
 
-Sync job və miqrasiya skripti nəticəni birbaşa PostgreSQL-ə yazır.
+The sync job and the migration script write their results directly to PostgreSQL.
 
-- **SSO:** Auth.js + Entra ID provider. Rollar token-dəki `groups` claim-dən oxunur; istifadəçi ilk login-də avtomatik yaradılır.
-- **Rollar:** ADMIN hər şeyi, o cümlədən lookup cədvəllərini və sync-i idarə edir; EDITOR asset yaradır, redaktə edir, checkout/checkin edir; VIEWER yalnız baxır.
-- **Intune sync:** client credentials ilə Graph. Uyğunlaşdırma normallaşdırılmış serial ilə; Intune-dan silinən cihaz `missingInIntune` olur, silinmir.
-- **Sahə bölgüsü:** cihaz adı, OS, son sync tarixi Intune-a məxsusdur və UI-da yalnız oxunur; şirkət, lokasiya, qiymət, qeydlər manual idarə olunur.
-- **Köhnə QR:** `/hardware/[id]` route-u `legacySnipeId` ilə asset-i tapıb yeni səhifəyə yönləndirir; köhnə domen saxlanılır və ya yönləndirilir.
-- **Yeni QR:** `/a/[assetTag]` — sistemdən asılı olmayan, dəyişməz format.
+- **SSO:** Auth.js + Entra ID provider. Roles are read from the `groups` claim in the token; a user is created automatically on first login.
+- **Roles:** ADMIN manages everything, including lookup tables and sync; EDITOR creates and edits assets and does checkout/checkin; VIEWER can only view.
+- **Intune sync:** Graph with client credentials. Matching by normalized serial; a device removed from Intune is flagged `missingInIntune`, not deleted.
+- **Field ownership:** device name, OS and last sync date belong to Intune and are read-only in the UI; company, location, cost and notes are managed manually.
+- **Legacy QR:** the `/hardware/[id]` route finds the asset by `legacySnipeId` and redirects to the new page; the old domain is kept or redirected.
+- **New QR:** `/a/[assetTag]` — a system-independent, immutable format.
 
-## Verilənlər bazası modeli
+## Database model
 
-Baza 9 cədvəldən ibarətdir; mərkəzdə `Asset` və onun tarixçəsini saxlayan `AssetEvent` dayanır.
+The database has 9 tables; at the center are `Asset` and `AssetEvent`, which stores its history.
 
-| Cədvəl | Məqsəd | Əsas sahələr |
-| --- | --- | --- |
-| `Asset` | Hər fiziki cihaz | assetTag (unikal), serial (unikal), name, notes, purchaseCost, purchaseDate, source (MANUAL / INTUNE / SNIPEIT), intuneId, legacySnipeId, lastIntuneSync, missingInIntune, statusId, modelId, companyId, locationId, assignedToId |
-| `AssetModel` | Model (HP ProBook 450 G7 və s.) | name, manufacturer, categoryId |
-| `Category` | Kateqoriya (Personal Computers və s.) | name |
-| `Company` | Şirkət (DRL, eiLink, EIG) | name |
-| `Location` | Ofis / otaq | name |
-| `StatusLabel` | Status | name, type (DEPLOYABLE / PENDING / UNDEPLOYABLE / ARCHIVED), color |
-| `User` | İşçilər | entraObjectId, email, displayName, department, role (ADMIN / EDITOR / VIEWER) |
-| `AssetEvent` | Tarixçə (dəyişməz log) | assetId, type (CREATED / UPDATED / CHECKOUT / CHECKIN / SYNC / IMPORTED), actorId, targetUserId, changes (JSON), createdAt |
-| `SyncRun` | Intune sync nəticələri | startedAt, finishedAt, created, updated, missing, errors (JSON) |
+| Table         | Purpose                             | Key fields                                                                                                                                                                                                                        |
+| ------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Asset`       | Each physical device                | assetTag (unique), serial (unique), name, notes, purchaseCost, purchaseDate, source (MANUAL / INTUNE / SNIPEIT), intuneId, legacySnipeId, lastIntuneSync, missingInIntune, statusId, modelId, companyId, locationId, assignedToId |
+| `AssetModel`  | Model (HP ProBook 450 G7, etc.)     | name, manufacturer, categoryId                                                                                                                                                                                                    |
+| `Category`    | Category (Personal Computers, etc.) | name                                                                                                                                                                                                                              |
+| `Company`     | Company (DRL, eiLink, EIG)          | name                                                                                                                                                                                                                              |
+| `Location`    | Office / room                       | name                                                                                                                                                                                                                              |
+| `StatusLabel` | Status                              | name, type (DEPLOYABLE / PENDING / UNDEPLOYABLE / ARCHIVED), color                                                                                                                                                                |
+| `User`        | Employees                           | entraObjectId, email, displayName, department, role (ADMIN / EDITOR / VIEWER)                                                                                                                                                     |
+| `AssetEvent`  | History (immutable log)             | assetId, type (CREATED / UPDATED / CHECKOUT / CHECKIN / SYNC / IMPORTED), actorId, targetUserId, changes (JSON), createdAt                                                                                                        |
+| `SyncRun`     | Intune sync results                 | startedAt, finishedAt, created, updated, missing, errors (JSON)                                                                                                                                                                   |
 
-Əsas qaydalar:
+Core rules:
 
-- Asset heç vaxt fiziki silinmir; ARCHIVED statusuna keçir.
-- Hər dəyişiklik `AssetEvent`-ə yazılır; tarixçə yalnız əlavə olunur, redaktə edilmir.
-- İstifadəçilər ilk login zamanı və ya Graph-dan avtomatik yaradılır; əl ilə user idarəetməsi yoxdur.
-- Asset tag formatı mövcud qayda ilə davam edir: `PC-00001`, növbəti nömrə avtomatik verilir.
+- An asset is never physically deleted; it moves to ARCHIVED status.
+- Every change is written to `AssetEvent`; history is append-only, never edited.
+- Users are created automatically on first login or from Graph; there is no manual user management.
+- Asset tag format continues the existing convention: `PC-00001`, the next number is assigned automatically.
 
-## Mərhələlər
+## Phases
 
-Layihə 7 mərhələyə bölünür; hər tapşırıq bir Claude Code sessiyası və bir commit-dir. Növbəti mərhələyə yalnız qəbul meyarı ödənəndə keçilir.
+The project is split into 7 phases; each task is one Claude Code session and one commit. Move to the next phase only when the acceptance criterion is met.
 
-### Mərhələ 0 — Qurulum
+### Phase 0 — Setup
 
-- [ ] Bir QR etiketi skan et, içindəki formatı qeyd et
-- [ ] Azure DevOps-da repo yarat, branch qaydalarını qur (`main` qorunur, PR ilə merge)
-- [ ] Next.js + TypeScript + Tailwind + shadcn/ui layihəsi
-- [ ] `docker-compose.yml` ilə lokal PostgreSQL
-- [ ] Prisma quraşdırılması, ilk boş migration
-- [ ] ESLint, Prettier, `.env.example`
-- [ ] `CLAUDE.md` və `docs/PLAN.md` fayllarını repo-ya əlavə et
+- [ ] Scan one QR label and record its format
+- [ ] Create the repo on GitHub, set up branch rules (`main` protected, merge via PR)
+- [x] Next.js + TypeScript + Tailwind + shadcn/ui project
+- [x] Local PostgreSQL via `docker-compose.yml`
+- [ ] Install Prisma, first empty migration (Prisma installed, migration not created yet)
+- [x] ESLint, Prettier, `.env.example`
+- [x] Add `CLAUDE.md` and `docs/PLAN.md` to the repo
 
-**Qəbul meyarı:** `npm run dev` işləyir, baza qoşulur.
+**Acceptance criterion:** `npm run dev` works, the database connects.
 
-### Mərhələ 1 — Baza və giriş
+**Status (2026-10-19):** `npm run dev` fails on the dev machine with `listen EACCES: permission denied 0.0.0.0:3000`.
+Cause: Windows' TCP dynamic port range starts at 1024 (should be 49152), so WSL/Hyper-V (WinNAT)
+reserves port blocks that include 3000 (`netsh interface ipv4 show excludedportrange protocol=tcp`
+shows 2964–3063). Resetting the range with `netsh int ipv4 set dynamic tcp start=49152 num=16384`
+(admin, after `wsl --shutdown` and `net stop winnat`) did not take effect — possibly a company
+policy (Intune/GPO). Next steps: retry and capture the netsh output / check with IT, or use another
+port meanwhile (`npm run dev -- -p 3100`; Entra redirect URI must match).
 
-- [ ] Tam Prisma sxemi və migration
-- [ ] Seed: statuslar, kateqoriyalar, şirkətlər
-- [ ] Entra ID-də App Registration (redirect URI, client secret)
-- [ ] Auth.js + Entra ID provider, login səhifəsi
-- [ ] Entra qruplarından rolların təyini (ADMIN / EDITOR / VIEWER)
-- [ ] Bütün səhifələr və API-lər üçün auth middleware
-- [ ] Əsas layout: kompakt sidebar, header, axtarış
+**Resolved (2026-10-21):** Running the same steps from an elevated (Run as administrator) terminal
+worked — the earlier attempt failed with "System error 5 / Access is denied" because the shell was
+not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:3000.
 
-**Qəbul meyarı:** Microsoft hesabı ilə giriş işləyir, rol qrupa görə düzgün təyin olunur.
+### Phase 1 — Database and sign-in
 
-### Mərhələ 2 — Snipe-IT miqrasiyası
+- [ ] Full Prisma schema and migration
+- [ ] Seed: statuses, categories, companies
+- [ ] App Registration in Entra ID (redirect URI, client secret)
+- [ ] Auth.js + Entra ID provider, login page
+- [ ] Role assignment from Entra groups (ADMIN / EDITOR / VIEWER)
+- [ ] Auth middleware for all pages and APIs
+- [ ] Main layout: compact sidebar, header, search
 
-- [ ] Snipe-IT-də API token yarat
-- [ ] Lookup cədvəllərinin köçürülməsi (model, kateqoriya, şirkət, status, lokasiya)
-- [ ] Asset-lərin köçürülməsi, `legacySnipeId` saxlanmaqla
-- [ ] Checkin/checkout tarixçəsinin `AssetEvent`-ə köçürülməsi
-- [ ] Köhnə QR route-u: `/hardware/[id]` → yeni asset səhifəsi
-- [ ] Skripti test bazasında işlət, sayı yoxla (316 asset)
+**Acceptance criterion:** sign-in with a Microsoft account works, the role is assigned correctly from the group.
 
-**Qəbul meyarı:** bütün asset-lər köçüb, 5 təsadüfi etiket skan edildikdə düzgün səhifə açılır.
+### Phase 2 — Snipe-IT migration
 
-### Mərhələ 3 — Əsas funksiyalar
+- [ ] Create an API token in Snipe-IT
+- [ ] Migrate lookup tables (model, category, company, status, location)
+- [ ] Migrate assets, keeping `legacySnipeId`
+- [ ] Migrate checkin/checkout history into `AssetEvent`
+- [ ] Legacy QR route: `/hardware/[id]` → new asset page
+- [ ] Run the script against a test database, verify the count (316 assets)
 
-- [ ] Asset siyahısı: cədvəl, axtarış, filter (status, şirkət, kateqoriya), pagination
-- [ ] Asset detal səhifəsi və tarixçə timeline-ı
-- [ ] Yaratma və redaktə formu (Intune sahələri yalnız oxunur)
-- [ ] Checkout / checkin dialoqları
-- [ ] Dashboard: statuslar üzrə saylar
-- [ ] Lookup cədvəllərinin idarə səhifəsi (admin)
+**Acceptance criterion:** all assets are migrated; scanning 5 random labels opens the correct page.
+
+### Phase 3 — Core features
+
+- [ ] Asset list: table, search, filters (status, company, category), pagination
+- [ ] Asset detail page and history timeline
+- [ ] Create and edit form (Intune fields read-only)
+- [ ] Checkout / checkin dialogs
+- [ ] Dashboard: counts by status
+- [ ] Lookup table management page (admin)
 - [ ] CSV export
 
-**Qəbul meyarı:** Snipe-IT-də gündəlik edilən bütün işlər yeni sistemdə edilə bilir.
+**Acceptance criterion:** everything done daily in Snipe-IT can be done in the new system.
 
-### Mərhələ 4 — Intune sinxronizasiyası
+### Phase 4 — Intune synchronization
 
-- [ ] App Registration-a `DeviceManagementManagedDevices.Read.All` (Application) icazəsi, admin consent
+- [ ] `DeviceManagementManagedDevices.Read.All` (Application) permission on the App Registration, admin consent
 - [ ] Graph client (client credentials, pagination)
-- [ ] Sync məntiqi: serial ilə uyğunlaşdırma, yaratma, yeniləmə, `missingInIntune` işarəsi
-- [ ] Sahə bölgüsü: texniki sahələr Intune-dan, biznes sahələri manual
-- [ ] Intune istifadəçisinin təyinat təklifi kimi göstərilməsi
-- [ ] Saatlıq cron job və “İndi sinxronlaşdır” düyməsi
-- [ ] Sync loqu səhifəsi (`SyncRun`)
+- [ ] Sync logic: match by serial, create, update, flag `missingInIntune`
+- [ ] Field ownership: technical fields from Intune, business fields manual
+- [ ] Show the Intune user as an assignment suggestion
+- [ ] Hourly cron job and a "Sync now" button
+- [ ] Sync log page (`SyncRun`)
 
-**Qəbul meyarı:** sync iki dəfə ardıcıl işlədildikdə dublikat yaranmır, manual dəyişikliklər itmir.
+**Acceptance criterion:** running sync twice in a row creates no duplicates and manual changes are not lost.
 
-### Mərhələ 5 — QR
+### Phase 5 — QR
 
-- [ ] Yeni asset-lər üçün QR (`/a/[assetTag]` URL-i)
-- [ ] Etiket çapı səhifəsi: seçilmiş asset-lər üçün PDF
-- [ ] Kamera ilə skan səhifəsi (həm köhnə, həm yeni format)
-- [ ] Skandan sonra sürətli checkin / checkout
+- [ ] QR for new assets (`/a/[assetTag]` URL)
+- [ ] Label printing page: PDF for selected assets
+- [ ] Camera scan page (both legacy and new format)
+- [ ] Quick checkin / checkout after scanning
 
-**Qəbul meyarı:** telefonla köhnə və yeni etiket skan edilib checkout edilə bilir.
+**Acceptance criterion:** both legacy and new labels can be scanned with a phone and checked out.
 
-### Mərhələ 6 — Deploy
+### Phase 6 — Deploy
 
-- [ ] Azure Database for PostgreSQL və App Service
-- [ ] Key Vault və App Service-in Managed Identity ilə qoşulması
-- [ ] Azure Pipelines: lint, build, migration, deploy
-- [ ] Production redirect URI-nin Entra-ya əlavə edilməsi
-- [ ] Son miqrasiya, köhnə domenin yeni sistemə yönləndirilməsi
-- [ ] Snipe-IT-i bir müddət yalnız oxuma rejimində saxla, sonra söndür
+- [ ] Azure Database for PostgreSQL and App Service
+- [ ] Connect Key Vault via the App Service Managed Identity
+- [ ] GitHub Actions: lint, build, migration, deploy
+- [ ] Add the production redirect URI to Entra
+- [ ] Final migration, redirect the old domain to the new system
+- [ ] Keep Snipe-IT read-only for a while, then shut it down
 
-**Qəbul meyarı:** komanda bir həftə yalnız yeni sistemdən istifadə edir və Snipe-IT-ə qayıtmaq ehtiyacı olmur.
+**Acceptance criterion:** the team uses only the new system for one week with no need to go back to Snipe-IT.
 
-## Claude ilə iş qaydası
+## Working with Claude
 
-Kontekst bir dəfə fayllarda yazılır, sessiyalar qısa və bir tapşırıqlıq olur — token qənaətinin əsası budur.
+Context is written once in files; sessions are short and single-task — this is the key to saving tokens.
 
-1. Kod yazılması üçün Claude Code istifadə et; çatda fayl copy-paste etmə.
-2. Sessiyanı belə başlat: “PLAN.md-dəki Mərhələ N-in növbəti tapşırığını et.”
-3. Böyük tapşırıqda əvvəlcə plan mode-da plan istə, təsdiqlə, sonra kod yazdır.
-4. Tapşırıq bitəndə test et, commit et, PLAN.md-də checkbox-u işarələ.
-5. `/clear` ilə konteksti təmizlə və növbəti tapşırığa keç.
-6. Yeni arxitektura qərarı verildikdə onu dərhal CLAUDE.md-yə bir sətirlə əlavə et.
-7. Xəta olanda bütün log-u yox, yalnız xəta mesajını və əlaqəli faylın adını ver.
+1. Use Claude Code for writing code; don't copy-paste files into chat.
+2. Start a session like this: "Do the next task of Phase N in PLAN.md."
+3. For a large task, ask for a plan in plan mode first, approve it, then have the code written.
+4. When a task is done, test, commit, and tick the checkbox in PLAN.md.
+5. Clear the context with `/clear` and move to the next task.
+6. When a new architecture decision is made, add it to CLAUDE.md as a single line right away.
+7. On errors, share only the error message and the related file name, not the whole log.
 
-Bu sənədi Markdown kimi export edib repo-ya `docs/PLAN.md` kimi qoymaq olar.
+The project context for Claude Code lives in `CLAUDE.md` at the repo root; Claude Code reads it automatically in every session.
 
-## CLAUDE.md şablonu
+## Risks and open questions
 
-Aşağıdakı mətni repo-nun kökündə `CLAUDE.md` kimi saxla; Claude Code onu hər sessiyada avtomatik oxuyur.
+The biggest risk is legacy QR labels no longer working; this is verified in Phase 0.
 
-```markdown
-# Asset Management — Claude üçün kontekst
+| Risk                                                          | Impact                      | Mitigation                                                                           |
+| ------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------ |
+| QR has a different format than expected                       | Labels must be reprinted    | Scan a label first; build the route accordingly                                      |
+| Old domain is lost                                            | All labels return 404       | Keep the domain or set up a redirect                                                 |
+| Serial numbers are written differently in Intune and Snipe-IT | Duplicate assets            | Normalize before comparing (uppercase, no spaces)                                    |
+| Client secret expires                                         | Sync stops                  | Store in Key Vault, put the expiry date in the calendar; later move to a certificate |
+| Project drags on                                              | Parallel work with Snipe-IT | Keep Snipe-IT active until the last phase                                            |
 
-## Layihə
-Daxili IT asset idarəetmə sistemi (Snipe-IT-in əvəzi).
-Plan və mərhələlər: docs/PLAN.md
+Questions that need answers before starting:
 
-## Stack
-Next.js (App Router) + TypeScript, Tailwind + shadcn/ui, TanStack Table,
-React Hook Form + Zod, PostgreSQL + Prisma, Auth.js (Entra ID), Microsoft Graph.
-
-## Əmrlər
-- npm run dev            — lokal server
-- docker compose up -d   — lokal PostgreSQL
-- npx prisma migrate dev — migration
-- npm run lint
-
-## Struktur
-- app/            — səhifələr və route handler-lər
-- app/api/        — API
-- lib/            — prisma, auth, graph client
-- lib/sync/       — Intune sync məntiqi
-- scripts/        — Snipe-IT miqrasiyası
-- components/     — UI komponentləri
-
-## Qaydalar
-- TypeScript strict; any istifadə etmə.
-- Validasiya Zod ilə, sxemlər lib/schemas-da.
-- Server Actions və ya route handler-lərdə həmişə rol yoxlaması.
-- Asset-lər silinmir, ARCHIVED olur.
-- Hər dəyişiklik AssetEvent-ə yazılır.
-- Secret-lər yalnız .env / Key Vault-da.
-- UI mətnləri Azərbaycan dilində.
-
-## Əsas qərarlar
-- Köhnə QR formatı: <skan edib bura yaz>
-- Köhnə QR route: /hardware/[id] → legacySnipeId ilə axtarış
-- Yeni QR: /a/[assetTag]
-- Intune uyğunlaşdırma: serialNumber ilə
-- Intune-un idarə etdiyi sahələr: name, osVersion, lastIntuneSync (UI-da read-only)
-- Rollar: Entra qrupları → ADMIN / EDITOR / VIEWER
-```
-
-## Risklər və açıq suallar
-
-Ən böyük risk köhnə QR etiketlərin işləməz qalmasıdır; bu, Mərhələ 0-da yoxlanılır.
-
-| Risk | Təsir | Qarşısının alınması |
-| --- | --- | --- |
-| QR-da gözləniləndən fərqli format | Etiketlər yenidən çap edilməlidir | İlk iş etiketi skan etmək; route-u ona görə qurmaq |
-| Köhnə domen itir | Bütün etiketlər 404 verir | Domeni saxlamaq və ya redirect qurmaq |
-| Serial nömrələr Intune və Snipe-IT-də fərqli yazılıb | Dublikat asset-lər | Müqayisədən əvvəl normallaşdırma (böyük hərf, boşluqsuz) |
-| Client secret-in müddəti bitir | Sync dayanır | Key Vault-da saxlamaq, bitmə tarixini təqvimə yazmaq; sonra certificate-ə keçmək |
-| Layihə uzanır | Snipe-IT ilə paralel iş | Snipe-IT-i son mərhələyə qədər aktiv saxlamaq |
-
-Başlamazdan əvvəl cavab lazım olan suallar:
-
-- [ ] Köhnə QR-ın içində tam olaraq nə yazılıb?
-- [ ] Yeni sistem hansı domendə olacaq?
-- [ ] Hansı Entra qrupları ADMIN, EDITOR və VIEWER olacaq?
-- [ ] Intune-da olmayan cihazlar (monitor, printer) da sistemə daxil ediləcəkmi?
-- [ ] Etiket printeri və etiket ölçüsü hansıdır?
+- [ ] What exactly is encoded in the legacy QR?
+- [ ] Which domain will the new system use?
+- [ ] Which Entra groups map to ADMIN, EDITOR and VIEWER?
+- [ ] Will devices not in Intune (monitors, printers) be added to the system?
+- [ ] Which label printer and label size?
