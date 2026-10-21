@@ -100,6 +100,10 @@ shows 2964–3063). Resetting the range with `netsh int ipv4 set dynamic tcp sta
 policy (Intune/GPO). Next steps: retry and capture the netsh output / check with IT, or use another
 port meanwhile (`npm run dev -- -p 3100`; Entra redirect URI must match).
 
+**Resolved (2026-10-21):** Running the same steps from an elevated (Run as administrator) terminal
+worked — the earlier attempt failed with "System error 5 / Access is denied" because the shell was
+not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:3000.
+
 ### Phase 1 — Database and sign-in
 
 - [ ] Full Prisma schema and migration
