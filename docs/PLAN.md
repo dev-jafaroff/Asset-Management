@@ -9,14 +9,16 @@ Replace Snipe-IT with a simple, compact internal system tailored to the company'
 **In the MVP:**
 
 - SSO with Microsoft Entra ID and roles based on Entra groups
-- Assets: create, edit, list, search, filter
+- Assets by type (PCs, monitors, printers, phones, virtual machines): create, edit, list, search, filter
+- Accessories tracked by quantity (in stock / assigned)
+- Users page: every employee and everything assigned to them (onboarding / offboarding)
 - Checkout / checkin and full history for every asset
 - Intune synchronization (automatic and manually triggered)
 - Migration from Snipe-IT and support for legacy QR codes
 - New QR generation, label printing and camera scanning
 - CSV export
 
-**Not in the MVP (later):** licenses, accessories, consumables, components, audit scheduling, maintenance records, mobile app (React Native).
+**Not in the MVP (later):** licenses (separate section, read from Graph), consumables, components, audit scheduling, maintenance records, mobile app (React Native).
 
 ## Technology stack
 
@@ -52,29 +54,46 @@ The sync job and the migration script write their results directly to PostgreSQL
 - **Field ownership:** device name, OS and last sync date belong to Intune and are read-only in the UI; company, location, cost and notes are managed manually.
 - **Legacy QR:** the `/hardware/[id]` route finds the asset by `legacySnipeId` and redirects to the new page; the old domain is kept or redirected.
 - **New QR:** `/a/[assetTag]` — a system-independent, immutable format.
+- **Users:** all employees are synced from Entra ID via Graph, so items can be assigned before a person ever signs in; the app role only matters for people who sign in.
+
+### Item types
+
+| Type            | Label / QR   | Tracked as                   | Assigned to | Notes                                           |
+| --------------- | ------------ | ---------------------------- | ----------- | ----------------------------------------------- |
+| PC              | Yes (`PC-`)  | One record per device        | User        | Synced from Intune                              |
+| Monitor         | Yes (`MON-`) | One record per device        | User        |                                                 |
+| Printer         | Yes (`PRN-`) | One record per device        | User        |                                                 |
+| Phone           | No           | One record per device        | User        | Phone number is a column; SIMs are not separate |
+| Virtual machine | No           | One record per VM            | Company     | Many users share one VM                         |
+| Accessory       | No           | Quantity (total / assigned)  | User        | Keyboard, mouse, headset, docking station, etc. |
+| License (later) | No           | Separate model, not an asset | User        | Read from Graph (`subscribedSkus`)              |
 
 ## Database model
 
-The database has 9 tables; at the center are `Asset` and `AssetEvent`, which stores its history.
+The database has 11 tables; at the center are `Asset` and `AssetEvent`, which stores its history.
 
-| Table         | Purpose                             | Key fields                                                                                                                                                                                                                        |
-| ------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Asset`       | Each physical device                | assetTag (unique), serial (unique), name, notes, purchaseCost, purchaseDate, source (MANUAL / INTUNE / SNIPEIT), intuneId, legacySnipeId, lastIntuneSync, missingInIntune, statusId, modelId, companyId, locationId, assignedToId |
-| `AssetModel`  | Model (HP ProBook 450 G7, etc.)     | name, manufacturer, categoryId                                                                                                                                                                                                    |
-| `Category`    | Category (Personal Computers, etc.) | name                                                                                                                                                                                                                              |
-| `Company`     | Company (DRL, eiLink, EIG)          | name                                                                                                                                                                                                                              |
-| `Location`    | Office / room                       | name                                                                                                                                                                                                                              |
-| `StatusLabel` | Status                              | name, type (DEPLOYABLE / PENDING / UNDEPLOYABLE / ARCHIVED), color                                                                                                                                                                |
-| `User`        | Employees                           | entraObjectId, email, displayName, department, role (ADMIN / EDITOR / VIEWER)                                                                                                                                                     |
-| `AssetEvent`  | History (immutable log)             | assetId, type (CREATED / UPDATED / CHECKOUT / CHECKIN / SYNC / IMPORTED), actorId, targetUserId, changes (JSON), createdAt                                                                                                        |
-| `SyncRun`     | Intune sync results                 | startedAt, finishedAt, created, updated, missing, errors (JSON)                                                                                                                                                                   |
+| Table                 | Purpose                             | Key fields                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Asset`               | Each device or VM                   | type (PC / MONITOR / PRINTER / PHONE / VM), assetTag (unique, labeled types only), serial (unique), phoneNumber, name, notes, purchaseCost, purchaseDate, source (MANUAL / INTUNE / SNIPEIT), intuneId, legacySnipeId, lastIntuneSync, missingInIntune, statusId, modelId, companyId, locationId, assignedToId |
+| `AssetModel`          | Model (HP ProBook 450 G7, etc.)     | name, manufacturer, categoryId                                                                                                                                                                                                                                                                                 |
+| `Category`            | Category (Personal Computers, etc.) | name                                                                                                                                                                                                                                                                                                           |
+| `Company`             | Company (DRL, eiLink, EIG)          | name                                                                                                                                                                                                                                                                                                           |
+| `Location`            | Office / room                       | name                                                                                                                                                                                                                                                                                                           |
+| `StatusLabel`         | Status                              | name, type (DEPLOYABLE / PENDING / UNDEPLOYABLE / ARCHIVED), color                                                                                                                                                                                                                                             |
+| `User`                | Employees                           | entraObjectId, email, displayName, department, role (ADMIN / EDITOR / VIEWER)                                                                                                                                                                                                                                  |
+| `AssetEvent`          | History (immutable log)             | assetId, type (CREATED / UPDATED / CHECKOUT / CHECKIN / SYNC / IMPORTED), actorId, targetUserId, changes (JSON), createdAt                                                                                                                                                                                     |
+| `SyncRun`             | Intune sync results                 | startedAt, finishedAt, created, updated, missing, errors (JSON)                                                                                                                                                                                                                                                |
+| `Accessory`           | Accessory stock item                | name, categoryId, totalQuantity                                                                                                                                                                                                                                                                                |
+| `AccessoryAssignment` | Accessories given to a user         | accessoryId, userId, quantity, assignedAt, returnedAt                                                                                                                                                                                                                                                          |
 
 Core rules:
 
 - An asset is never physically deleted; it moves to ARCHIVED status.
 - Every change is written to `AssetEvent`; history is append-only, never edited.
 - Users are created automatically on first login or from Graph; there is no manual user management.
-- Asset tag format continues the existing convention: `PC-00001`, the next number is assigned automatically.
+- Asset tag format continues the existing convention: `PC-00001`, `MON-00001`, `PRN-00001`; the next number per prefix is assigned automatically. Phones and VMs have no tag.
+- A VM is assigned to a company (`companyId`), never to a user.
+- Accessories in stock = `totalQuantity` minus the sum of open assignments.
 
 ## Phases
 
@@ -112,7 +131,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Auth.js + Entra ID provider, login page
 - [ ] Role assignment from Entra groups (ADMIN / EDITOR / VIEWER)
 - [ ] Auth middleware for all pages and APIs
-- [ ] Main layout: compact sidebar, header, search
+- [ ] Main layout: compact sidebar (Home, Users, Assets by type, Licenses, Scan, Admin), header, search
 
 **Acceptance criterion:** sign-in with a Microsoft account works, the role is assigned correctly from the group.
 
@@ -129,10 +148,12 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 ### Phase 3 — Core features
 
-- [ ] Asset list: table, search, filters (status, company, category), pagination
+- [ ] Asset list: table, search, filters (type, status, company, category), pagination
 - [ ] Asset detail page and history timeline
-- [ ] Create and edit form (Intune fields read-only)
+- [ ] Create and edit form per type (Intune fields read-only, phone number for phones, company for VMs)
 - [ ] Checkout / checkin dialogs
+- [ ] Accessories: stock list, assign / return by quantity
+- [ ] Users list and user detail page: all assigned items, "check in all" for offboarding
 - [ ] Dashboard: counts by status
 - [ ] Lookup table management page (admin)
 - [ ] CSV export
@@ -148,12 +169,13 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Show the Intune user as an assignment suggestion
 - [ ] Hourly cron job and a "Sync now" button
 - [ ] Sync log page (`SyncRun`)
+- [ ] User sync from Entra ID (`User.Read.All` Application permission): name, email, department
 
 **Acceptance criterion:** running sync twice in a row creates no duplicates and manual changes are not lost.
 
 ### Phase 5 — QR
 
-- [ ] QR for new assets (`/a/[assetTag]` URL)
+- [ ] QR for new labeled assets — PCs, monitors, printers (`/a/[assetTag]` URL)
 - [ ] Label printing page: PDF for selected assets
 - [ ] Camera scan page (both legacy and new format)
 - [ ] Quick checkin / checkout after scanning
@@ -202,5 +224,5 @@ Questions that need answers before starting:
 - [ ] What exactly is encoded in the legacy QR?
 - [ ] Which domain will the new system use?
 - [ ] Which Entra groups map to ADMIN, EDITOR and VIEWER?
-- [ ] Will devices not in Intune (monitors, printers) be added to the system?
+- [x] Will devices not in Intune (monitors, printers) be added to the system? Yes — see "Item types".
 - [ ] Which label printer and label size?
