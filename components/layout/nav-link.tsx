@@ -9,13 +9,14 @@ type NavLinkProps = {
   href: string;
   label: string;
   icon: ReactNode;
+  exact?: boolean;
 };
 
-export function NavLink({ href, label, icon }: NavLinkProps) {
+export function NavLink({ href, label, icon, exact = false }: NavLinkProps) {
   const pathname = usePathname();
   const isActive =
-    href === "/"
-      ? pathname === "/"
+    exact || href === "/"
+      ? pathname === href
       : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
