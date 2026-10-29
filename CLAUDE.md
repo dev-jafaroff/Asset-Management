@@ -47,5 +47,12 @@ React Hook Form + Zod, PostgreSQL + Prisma, Auth.js (Entra ID), Microsoft Graph.
 - Intune matching: by serialNumber
 - Intune-owned fields: name, osVersion, lastIntuneSync (read-only in UI)
 - Roles: Entra groups → ADMIN / EDITOR / VIEWER
+- Asset types: PC, MONITOR, PRINTER (labeled, tag prefixes PC- / MON- / PRN-), PHONE, VM (no label)
+- Phone number is a column on PHONE assets; SIMs are not separate items
+- VMs are assigned to a company, never to a user
+- Accessories are tracked by quantity (Accessory + AccessoryAssignment), no labels
+- Licenses are not assets: separate model, later, read from Graph
+- Users: all employees synced from Entra via Graph; /users/[id] shows everything assigned
+- Auth is mocked until feat/entra-sso: getCurrentUser() in lib/current-user.ts
 
 @AGENTS.md
