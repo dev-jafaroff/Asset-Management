@@ -33,8 +33,8 @@ export function AppSidebar({ role }: { role: Role }) {
   );
 
   return (
-    <aside className="border-sidebar-border bg-sidebar flex w-56 shrink-0 flex-col border-r">
-      <div className="border-sidebar-border flex h-12 shrink-0 items-center border-b px-4 text-sm font-semibold">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <div className="flex h-12 shrink-0 items-center border-b border-sidebar-border px-4 text-sm font-semibold">
         Asset Management
       </div>
 
@@ -42,7 +42,7 @@ export function AppSidebar({ role }: { role: Role }) {
         {sections.map((section, index) => (
           <div key={section.title ?? index} className="flex flex-col gap-0.5">
             {section.title && (
-              <p className="text-muted-foreground mb-1 px-2 text-xs font-medium">
+              <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">
                 {section.title}
               </p>
             )}

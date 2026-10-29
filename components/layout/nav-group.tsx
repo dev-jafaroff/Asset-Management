@@ -32,7 +32,7 @@ export function NavGroup({ label, icon, basePath, children }: NavGroupProps) {
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         className={cn(
-          "text-sidebar-foreground hover:bg-sidebar-accent flex h-8 w-full items-center gap-2 rounded-md px-2 text-sm transition-colors [&_svg]:size-4 [&_svg]:shrink-0",
+          "flex h-8 w-full items-center gap-2 rounded-md px-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent [&_svg]:size-4 [&_svg]:shrink-0",
           isInGroup && "font-medium",
         )}
       >
@@ -44,7 +44,7 @@ export function NavGroup({ label, icon, basePath, children }: NavGroupProps) {
       </button>
 
       {isOpen && (
-        <div className="border-sidebar-border mt-0.5 ml-4 flex flex-col gap-0.5 border-l pl-2">
+        <div className="mt-0.5 ml-4 flex flex-col gap-0.5 border-l border-sidebar-border pl-2">
           {children}
         </div>
       )}
