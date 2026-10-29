@@ -1,10 +1,13 @@
+import { PageHeader } from "@/components/layout/page-header";
+
 export default function HomePage() {
   return (
-    <div className="space-y-1">
-      <h1 className="text-xl font-semibold">Home</h1>
-      <p className="text-sm text-muted-foreground">
-        Overview of your IT assets.
-      </p>
-    </div>
+    <>
+      <PageHeader title="Home" description="Overview of your IT assets." />
+
+      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+        Dashboard widgets will appear here.
+      </div>
+    </>
   );
 }
