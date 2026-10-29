@@ -25,7 +25,7 @@ export function NavGroup({ label, icon, basePath, children }: NavGroupProps) {
     if (isInGroup) setIsOpen(true);
   }
 
-    return (
+  return (
     <div>
       <button
         type="button"

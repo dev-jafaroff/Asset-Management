@@ -1,36 +1,59 @@
-import { House, Laptop, RefreshCw, ScanLine, Tags } from "lucide-react";
 import type { Role } from "@/lib/current-user";
+import { NavGroup } from "./nav-group";
+import { isNavGroup, navSections, type NavItem } from "./nav-items";
 import { NavLink } from "./nav-link";
 
+function SidebarItem({ item }: { item: NavItem }) {
+  const Icon = item.icon;
+  const icon = Icon ? <Icon /> : undefined;
+
+  if (isNavGroup(item)) {
+    return (
+      <NavGroup label={item.label} icon={icon} basePath={item.basePath}>
+        {item.items.map((child) => (
+          <SidebarItem key={child.href} item={child} />
+        ))}
+      </NavGroup>
+    );
+  }
+
+  return (
+    <NavLink
+      href={item.href}
+      label={item.label}
+      icon={icon}
+      exact={item.exact}
+    />
+  );
+}
+
 export function AppSidebar({ role }: { role: Role }) {
+  const sections = navSections.filter(
+    (section) => !section.roles || section.roles.includes(role),
+  );
+
   return (
     <aside className="border-sidebar-border bg-sidebar flex w-56 shrink-0 flex-col border-r">
       <div className="border-sidebar-border flex h-12 shrink-0 items-center border-b px-4 text-sm font-semibold">
         Asset Management
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 p-2">
-        <NavLink href="/" label="Home" icon={<House />} />
-        <NavLink href="/assets" label="Assets" icon={<Laptop />} />
-        <NavLink href="/scan" label="Scan" icon={<ScanLine />} />
-
-        {role === "ADMIN" && (
-          <>
-            <p className="text-muted-foreground mt-4 mb-1 px-2 text-xs font-medium">
-              Admin
-            </p>
-            <NavLink
-              href="/admin/lookups"
-              label="Lookup tables"
-              icon={<Tags />}
-            />
-            <NavLink
-              href="/admin/sync"
-              label="Intune sync"
-              icon={<RefreshCw />}
-            />
-          </>
-        )}
+      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-2">
+        {sections.map((section, index) => (
+          <div key={section.title ?? index} className="flex flex-col gap-0.5">
+            {section.title && (
+              <p className="text-muted-foreground mb-1 px-2 text-xs font-medium">
+                {section.title}
+              </p>
+            )}
+            {section.items.map((item) => (
+              <SidebarItem
+                key={isNavGroup(item) ? item.basePath : item.href}
+                item={item}
+              />
+            ))}
+          </div>
+        ))}
       </nav>
     </aside>
   );
