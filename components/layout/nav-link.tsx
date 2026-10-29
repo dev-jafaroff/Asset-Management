@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 type NavLinkProps = {
   href: string;
   label: string;
-  icon: ReactNode;
+  icon?: ReactNode;
   exact?: boolean;
 };
 
