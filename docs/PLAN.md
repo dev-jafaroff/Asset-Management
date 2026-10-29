@@ -131,7 +131,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Auth.js + Entra ID provider, login page
 - [ ] Role assignment from Entra groups (ADMIN / EDITOR / VIEWER)
 - [ ] Auth middleware for all pages and APIs
-- [ ] Main layout: compact sidebar (Home, Users, Assets by type, Licenses, Scan, Admin), header, search
+- [x] Main layout: compact sidebar (Home, Users, Assets by type, Licenses, Scan, Admin), header, search
 
 **Acceptance criterion:** sign-in with a Microsoft account works, the role is assigned correctly from the group.
 
