@@ -1,5 +1,3 @@
-// Prisma schema. Models are added in Phase 1.
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -7,4 +5,224 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum AssetType {
+  PC
+  MONITOR
+  PRINTER
+  PHONE
+  VM
+}
+
+enum AssetSource {
+  MANUAL
+  INTUNE
+  SNIPEIT
+}
+
+enum StatusType {
+  DEPLOYABLE
+  PENDING
+  UNDEPLOYABLE
+  ARCHIVED
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum AssetEventType {
+  CREATED
+  UPDATED
+  CHECKOUT
+  CHECKIN
+  SYNC
+  IMPORTED
+}
+
+// ─── Lookup tables ───────────────────────────────────────────────────────────
+
+model Category {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  models      AssetModel[]
+  accessories Accessory[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model AssetModel {
+  id           Int      @id @default(autoincrement())
+  name         String
+  manufacturer String?
+  categoryId   Int
+  category     Category @relation(fields: [categoryId], references: [id])
+  assets       Asset[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([manufacturer, name])
+}
+
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  assets    Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  assets    Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StatusLabel {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  type      StatusType
+  color     String
+  assets    Asset[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id            Int     @id @default(autoincrement())
+  entraObjectId String  @unique
+  email         String  @unique
+  displayName   String
+  department    String?
+  jobTitle      String?
+  role          Role    @default(VIEWER)
+  isActive      Boolean @default(true)
+
+  assignedAssets      Asset[]               @relation("AssetAssignedTo")
+  accessories         AccessoryAssignment[] @relation("AccessoryAssignedTo")
+  accessoriesAssigned AccessoryAssignment[] @relation("AccessoryAssignedBy")
+  eventsPerformed     AssetEvent[]          @relation("EventActor")
+  eventsReceived      AssetEvent[]          @relation("EventTargetUser")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Assets ──────────────────────────────────────────────────────────────────
+
+model Asset {
+  id       Int       @id @default(autoincrement())
+  type     AssetType
+  assetTag String?   @unique
+  serial   String?   @unique
+  name     String?
+  notes    String?
+
+  // Phones
+  imei        String? @unique
+  phoneNumber String?
+
+  // PCs (from Intune) and VMs (manual)
+  operatingSystem String?
+  osVersion       String?
+
+  // VMs
+  vmHost String?
+  vCpu   Int?
+  ramGb  Int?
+
+  purchaseCost Decimal?  @db.Decimal(10, 2)
+  purchaseDate DateTime? @db.Date
+
+  source          AssetSource @default(MANUAL)
+  intuneId        String?     @unique
+  lastIntuneSync  DateTime?
+  missingInIntune Boolean     @default(false)
+  legacySnipeId   Int?        @unique
+
+  statusId     Int
+  status       StatusLabel @relation(fields: [statusId], references: [id])
+  modelId      Int?
+  model        AssetModel? @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  companyId    Int?
+  company      Company?    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  locationId   Int?
+  location     Location?   @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  assignedToId Int?
+  assignedTo   User?       @relation("AssetAssignedTo", fields: [assignedToId], references: [id], onDelete: Restrict)
+
+  events AssetEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([statusId])
+  @@index([assignedToId])
+  @@index([companyId])
+}
+
+model AssetEvent {
+  id           Int            @id @default(autoincrement())
+  assetId      Int
+  asset        Asset          @relation(fields: [assetId], references: [id])
+  type         AssetEventType
+  actorId      Int?
+  actor        User?          @relation("EventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  targetUserId Int?
+  targetUser   User?          @relation("EventTargetUser", fields: [targetUserId], references: [id], onDelete: Restrict)
+  changes      Json?
+  createdAt    DateTime       @default(now())
+
+  @@index([assetId, createdAt])
+}
+
+// ─── Accessories ─────────────────────────────────────────────────────────────
+
+model Accessory {
+  id            Int                   @id @default(autoincrement())
+  name          String                @unique
+  categoryId    Int
+  category      Category              @relation(fields: [categoryId], references: [id])
+  totalQuantity Int                   @default(0)
+  assignments   AccessoryAssignment[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model AccessoryAssignment {
+  id           Int       @id @default(autoincrement())
+  accessoryId  Int
+  accessory    Accessory @relation(fields: [accessoryId], references: [id])
+  userId       Int
+  user         User      @relation("AccessoryAssignedTo", fields: [userId], references: [id])
+  quantity     Int       @default(1)
+  assignedAt   DateTime  @default(now())
+  returnedAt   DateTime?
+  assignedById Int?
+  assignedBy   User?     @relation("AccessoryAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([accessoryId, returnedAt])
+}
+
+// ─── Intune sync ─────────────────────────────────────────────────────────────
+
+model SyncRun {
+  id         Int       @id @default(autoincrement())
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  created    Int       @default(0)
+  updated    Int       @default(0)
+  missing    Int       @default(0)
+  errors     Json?
 }
