@@ -1,4 +1,6 @@
-export type Role = "ADMIN" | "EDITOR" | "VIEWER";
+import type { Role } from "@/lib/generated/prisma/enums";
+
+export type { Role };
 
 export type CurrentUser = {
   displayName: string;

@@ -125,8 +125,8 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 ### Phase 1 — Database and sign-in
 
-- [ ] Full Prisma schema and migration
-- [ ] Seed: statuses, categories, companies
+- [x] Full Prisma schema and migration
+- [ ] Seed: statuses (In stock = new, unopened; In storage = used and returned — both DEPLOYABLE; Pending; In repair; Archived), categories, companies
 - [ ] App Registration in Entra ID (redirect URI, client secret)
 - [ ] Auth.js + Entra ID provider, login page
 - [ ] Role assignment from Entra groups (ADMIN / EDITOR / VIEWER)
