@@ -29,12 +29,25 @@ export type AssetListItem = Prisma.AssetGetPayload<{
 
 export type AssetListFilter = {
   type?: AssetType;
+  // Condition of the selected status tab (see lib/assets/status-filters.ts).
+  status?: Prisma.AssetWhereInput;
 };
 
 function buildWhere(filter: AssetListFilter): Prisma.AssetWhereInput {
   return {
-    type: filter.type,
+    AND: [{ type: filter.type }, filter.status ?? {}],
   };
+}
+
+export async function countAssets(filter: AssetListFilter = {}) {
+  return prisma.asset.count({ where: buildWhere(filter) });
+}
+
+export async function listStatusLabels() {
+  return prisma.statusLabel.findMany({
+    select: { id: true, name: true, type: true, color: true },
+    orderBy: { id: "asc" },
+  });
 }
 
 export async function listAssets(

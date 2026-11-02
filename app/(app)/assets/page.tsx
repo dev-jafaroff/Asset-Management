@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "All assets",
 };
 
-export default function AllAssetsPage() {
+export default function AllAssetsPage({ searchParams }: PageProps<"/assets">) {
   return (
     <>
       <PageHeader
@@ -16,7 +16,7 @@ export default function AllAssetsPage() {
       />
 
       <Suspense fallback={<AssetListFallback />}>
-        <AssetList />
+        <AssetList basePath="/assets" searchParams={searchParams} />
       </Suspense>
     </>
   );

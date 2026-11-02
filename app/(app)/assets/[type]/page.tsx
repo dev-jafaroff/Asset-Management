@@ -19,6 +19,7 @@ export async function generateMetadata({
 
 export default async function AssetTypePage({
   params,
+  searchParams,
 }: PageProps<"/assets/[type]">) {
   const { type } = await params;
   const config = getAssetTypeBySlug(type);
@@ -29,7 +30,11 @@ export default async function AssetTypePage({
       <PageHeader title={config.label} />
 
       <Suspense fallback={<AssetListFallback />}>
-        <AssetList filter={{ type: config.type }} />
+        <AssetList
+          type={config.type}
+          basePath={`/assets/${config.slug}`}
+          searchParams={searchParams}
+        />
       </Suspense>
     </>
   );

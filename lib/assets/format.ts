@@ -8,7 +8,7 @@ type AssetWithStatus = AssetAssignment & Pick<AssetListItem, "status">;
 export type DisplayStatus = { label: string; color: string };
 
 // "Assigned" is derived from the assignment, not stored as a status label.
-const ASSIGNED_STATUS: DisplayStatus = {
+export const ASSIGNED_STATUS: DisplayStatus = {
   label: "Assigned",
   color: "var(--primary)",
 };
@@ -29,6 +29,7 @@ export function getAssetHolder(asset: AssetAssignment): string | null {
   return asset.assignedTo?.displayName ?? null;
 }
 
+// Database equivalent: assignedWhere in lib/assets/status-filters.ts.
 export function isAssetAssigned(asset: AssetAssignment): boolean {
   return getAssetHolder(asset) !== null;
 }

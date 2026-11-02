@@ -4,15 +4,27 @@ import type { DisplayStatus } from "@/lib/assets/format";
 
 // Status colors are admin-editable data, so the color is passed in as a CSS
 // variable; all styling stays in the class names.
-export function StatusBadge({ status }: { status: DisplayStatus }) {
-  const colorVariable = { "--status-color": status.color } as CSSProperties;
+function statusColorVariable(color: string): CSSProperties {
+  return { "--status-color": color } as CSSProperties;
+}
 
+export function StatusDot({ color }: { color: string }) {
+  return (
+    <span
+      aria-hidden
+      className="size-1.5 shrink-0 rounded-full bg-(--status-color)"
+      style={statusColorVariable(color)}
+    />
+  );
+}
+
+export function StatusBadge({ status }: { status: DisplayStatus }) {
   return (
     <Badge
       className="bg-(--status-color)/10 text-(--status-color)"
-      style={colorVariable}
+      style={statusColorVariable(status.color)}
     >
-      <span aria-hidden className="size-1.5 rounded-full bg-(--status-color)" />
+      <StatusDot color={status.color} />
       {status.label}
     </Badge>
   );
