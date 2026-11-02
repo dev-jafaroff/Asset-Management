@@ -18,7 +18,7 @@ Replace Snipe-IT with a simple, compact internal system tailored to the company'
 - New QR generation, label printing and camera scanning
 - CSV export
 
-**Not in the MVP (later):** licenses (separate section, read from Graph), consumables, components, audit scheduling, maintenance records, mobile app (React Native).
+**Not in the MVP (later):** licenses (separate section: Microsoft 365 read from Graph, other vendors such as Adobe entered manually — maybe synced from vendor admin APIs later), consumables, components, audit scheduling, maintenance records, mobile app (React Native).
 
 ## Technology stack
 
@@ -66,7 +66,7 @@ The sync job and the migration script write their results directly to PostgreSQL
 | Phone           | No           | One record per device        | User        | Phone number is a column; SIMs are not separate |
 | Virtual machine | No           | One record per VM            | Company     | Many users share one VM                         |
 | Accessory       | No           | Quantity (total / assigned)  | User        | Keyboard, mouse, headset, docking station, etc. |
-| License (later) | No           | Separate model, not an asset | User        | Read from Graph (`subscribedSkus`)              |
+| License (later) | No           | Separate model, not an asset | User        | Graph (`subscribedSkus`) + manual entry         |
 
 ## Database model
 
@@ -148,13 +148,16 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 ### Phase 3 — Core features
 
-- [ ] Asset list: table, search, filters (type, status, company, category), pagination
+- [ ] Asset list: table, status tabs, search, filters (type, status, company, category), pagination
+- [ ] Bulk actions on selected assets: check out, check in, change status, print labels
 - [ ] Asset detail page and history timeline
 - [ ] Create and edit form per type (Intune fields read-only, phone number for phones, company for VMs)
 - [ ] Checkout / checkin dialogs
 - [ ] Accessories: stock list, assign / return by quantity
 - [ ] Users list and user detail page: all assigned items, "check in all" for offboarding
-- [ ] Dashboard: counts by status
+- [ ] Handover PDF from the user page (optional; HR issues the official act)
+- [ ] Dashboard: clickable status tiles, assets by type, recent activity
+- [ ] Dashboard "Needs attention": missing in Intune, long in repair, inactive users still holding items
 - [ ] Lookup table management page (admin)
 - [ ] CSV export
 
@@ -179,6 +182,8 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Label printing page: PDF for selected assets
 - [ ] Camera scan page (both legacy and new format)
 - [ ] Quick checkin / checkout after scanning
+- [ ] Scan modes (Open / Check out / Check in) for scanning many items in a row, with a per-session scan log
+- [ ] Desktop scan: webcam, USB scanner or typed tag
 
 **Acceptance criterion:** both legacy and new labels can be scanned with a phone and checked out.
 
