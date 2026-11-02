@@ -2,6 +2,7 @@
 // Requires the base seed (`npx prisma db seed`) for statuses, companies and accessory categories.
 import "dotenv/config";
 import { faker } from "@faker-js/faker";
+import { formatAssetTag, getAssetTypeConfig } from "@/lib/assets/asset-types";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
@@ -29,12 +30,6 @@ const assetCounts: Record<AssetType, number> = {
   PRINTER: 6,
   PHONE: 20,
   VM: 8,
-};
-
-const tagPrefixes: Partial<Record<AssetType, string>> = {
-  PC: "PC",
-  MONITOR: "MON",
-  PRINTER: "PRN",
 };
 
 const purchaseCostRanges: Partial<Record<AssetType, [number, number]>> = {
@@ -213,14 +208,14 @@ function typeFields(
 
   const model = faker.helpers.arrayElement(refs.modelsByType.get(type) ?? []);
   const [minCost, maxCost] = purchaseCostRanges[type] ?? [0, 0];
-  const prefix = tagPrefixes[type];
+  const { tagPrefix } = getAssetTypeConfig(type);
   const common = {
     serial: serial(),
     modelId: model.id,
     purchaseCost: faker.commerce.price({ min: minCost, max: maxCost }),
     purchaseDate: faker.date.past({ years: 4 }),
-    ...(prefix && {
-      assetTag: `${prefix}-${padded(index)}`,
+    ...(tagPrefix && {
+      assetTag: formatAssetTag(tagPrefix, index),
       locationId: faker.helpers.arrayElement(refs.locationIds),
     }),
   };

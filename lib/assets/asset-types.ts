@@ -46,6 +46,13 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
   },
 ];
 
+const TAG_SEQUENCE_DIGITS = 4;
+
+// formatAssetTag("PC-", 7) → "PC-0007"
+export function formatAssetTag(tagPrefix: string, sequence: number): string {
+  return `${tagPrefix}${String(sequence).padStart(TAG_SEQUENCE_DIGITS, "0")}`;
+}
+
 export function getAssetTypeBySlug(slug: string): AssetTypeConfig | undefined {
   return assetTypeConfigs.find((config) => config.slug === slug);
 }
