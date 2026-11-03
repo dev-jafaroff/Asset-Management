@@ -1,6 +1,4 @@
-import Form from "next/form";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { SearchForm } from "@/components/shared/search-form";
 import type { CurrentUser } from "@/lib/current-user";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
@@ -22,16 +20,12 @@ export function AppHeader({ user }: { user: CurrentUser }) {
         <SidebarNav role={user.role} />
       </MobileNav>
 
-      <Form action="/assets" className="relative w-full max-w-sm">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          name="q"
-          placeholder="Search by tag, serial or name"
-          aria-label="Search assets"
-          className="pl-8"
-        />
-      </Form>
+      <SearchForm
+        action="/assets"
+        label="Search assets"
+        placeholder="Search by tag, serial or name"
+        className="max-w-sm"
+      />
 
       <div className="ml-auto flex items-center gap-2">
         <div className="hidden text-right leading-tight sm:block">

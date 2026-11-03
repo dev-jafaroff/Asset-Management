@@ -8,7 +8,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Asset Management",
+  title: {
+    default: "Asset Management",
+    template: "%s · Asset Management",
+  },
   description: "Internal IT asset management system",
 };
 
