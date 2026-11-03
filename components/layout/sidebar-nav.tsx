@@ -1,7 +1,14 @@
+import { Suspense, type ReactNode } from "react";
 import type { Role } from "@/lib/current-user";
 import { NavGroup } from "./nav-group";
-import { isNavGroup, navSections, type NavItem } from "./nav-items";
+import {
+  isNavGroup,
+  navSections,
+  type NavItem,
+  type NavSection,
+} from "./nav-items";
 import { NavLink } from "./nav-link";
+import { StatusNav } from "./status-nav";
 
 function SidebarItem({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -27,28 +34,57 @@ function SidebarItem({ item }: { item: NavItem }) {
   );
 }
 
+function SidebarSection({
+  title,
+  children,
+}: {
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {title && (
+        <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">
+          {title}
+        </p>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function renderSection(section: NavSection, index: number) {
+  return (
+    <SidebarSection key={section.title ?? index} title={section.title}>
+      {section.items.map((item) => (
+        <SidebarItem
+          key={isNavGroup(item) ? item.basePath : item.href}
+          item={item}
+        />
+      ))}
+    </SidebarSection>
+  );
+}
+
 export function SidebarNav({ role }: { role: Role }) {
   const sections = navSections.filter(
     (section) => !section.roles || section.roles.includes(role),
   );
+  // Role-restricted sections (Admin) stay at the bottom, below "By status".
+  const openSections = sections.filter((section) => !section.roles);
+  const restrictedSections = sections.filter((section) => section.roles);
 
   return (
     <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-2">
-      {sections.map((section, index) => (
-        <div key={section.title ?? index} className="flex flex-col gap-0.5">
-          {section.title && (
-            <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">
-              {section.title}
-            </p>
-          )}
-          {section.items.map((item) => (
-            <SidebarItem
-              key={isNavGroup(item) ? item.basePath : item.href}
-              item={item}
-            />
-          ))}
-        </div>
-      ))}
+      {openSections.map(renderSection)}
+
+      <SidebarSection title="By status">
+        <Suspense fallback={null}>
+          <StatusNav />
+        </Suspense>
+      </SidebarSection>
+
+      {restrictedSections.map(renderSection)}
     </nav>
   );
 }

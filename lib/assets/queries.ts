@@ -1,4 +1,5 @@
 import { Prisma } from "@/lib/generated/prisma/client";
+import { buildStatusTabs, type StatusTab } from "@/lib/assets/status-filters";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
@@ -75,6 +76,20 @@ export async function listStatusLabels() {
     select: { id: true, name: true, type: true, color: true },
     orderBy: { id: "asc" },
   });
+}
+
+export type StatusTabWithCount = StatusTab & { count: number };
+
+// Every status tab with the number of assets it holds under `filter`.
+// Shared by the list tabs and the sidebar "By status" section.
+export async function listStatusTabsWithCounts(
+  filter: Omit<AssetListFilter, "status"> = {},
+): Promise<StatusTabWithCount[]> {
+  const tabs = buildStatusTabs(await listStatusLabels());
+  const counts = await Promise.all(
+    tabs.map((tab) => countAssets({ ...filter, status: tab.where })),
+  );
+  return tabs.map((tab, index) => ({ ...tab, count: counts[index] }));
 }
 
 // `page` is 1-based.

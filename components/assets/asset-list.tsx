@@ -7,15 +7,13 @@ import {
 import { SearchForm } from "@/components/shared/search-form";
 import {
   ASSET_PAGE_SIZE,
-  countAssets,
   listAssets,
-  listStatusLabels,
+  listStatusTabsWithCounts,
 } from "@/lib/assets/queries";
 import {
-  ALL_STATUS_SLUG,
-  buildStatusTabs,
   findStatusTab,
   STATUS_PARAM,
+  toStatusParam,
 } from "@/lib/assets/status-filters";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import {
@@ -43,14 +41,10 @@ export async function AssetList({
   const params = await searchParams;
   const search = getParam(params, SEARCH_PARAM);
 
-  const tabs = buildStatusTabs(await listStatusLabels());
-  const activeTab = findStatusTab(tabs, getParam(params, STATUS_PARAM));
-
   // Tab counts follow the search, so they show where the matches are.
-  const counts = await Promise.all(
-    tabs.map((tab) => countAssets({ type, search, status: tab.where })),
-  );
-  const total = counts[tabs.indexOf(activeTab)];
+  const tabs = await listStatusTabsWithCounts({ type, search });
+  const activeTab = findStatusTab(tabs, getParam(params, STATUS_PARAM));
+  const total = activeTab.count;
   const pageCount = getPageCount(total, ASSET_PAGE_SIZE);
   // A page past the end (e.g. after a search narrowed the list) shows the last page.
   const page = Math.min(getPageParam(params), pageCount);
@@ -67,22 +61,19 @@ export async function AssetList({
         label="Search this list"
         placeholder="Search by tag, serial, model or user"
         defaultValue={search}
-        preserve={{
-          [STATUS_PARAM]:
-            activeTab.slug === ALL_STATUS_SLUG ? undefined : activeTab.slug,
-        }}
+        preserve={{ [STATUS_PARAM]: toStatusParam(activeTab.slug) }}
         className="max-w-sm"
       />
 
       <StatusTabs
         activeSlug={activeTab.slug}
-        tabs={tabs.map((tab, index) => ({
+        tabs={tabs.map((tab) => ({
           slug: tab.slug,
           label: tab.label,
           color: tab.color,
-          count: counts[index],
+          count: tab.count,
           href: buildHref(basePath, params, {
-            [STATUS_PARAM]: tab.slug === ALL_STATUS_SLUG ? undefined : tab.slug,
+            [STATUS_PARAM]: toStatusParam(tab.slug),
             [PAGE_PARAM]: undefined,
           }),
         }))}

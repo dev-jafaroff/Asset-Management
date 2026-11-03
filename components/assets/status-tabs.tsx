@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { StatusDot } from "@/components/assets/status-badge";
+import { CountBadge } from "@/components/shared/count-badge";
 import { cn } from "@/lib/utils";
 
 export type StatusTabItem = {
@@ -37,14 +38,7 @@ export function StatusTabs({ tabs, activeSlug }: StatusTabsProps) {
           >
             {tab.color && <StatusDot color={tab.color} />}
             {tab.label}
-            <span
-              className={cn(
-                "rounded-full bg-muted px-1.5 text-xs text-muted-foreground",
-                isActive && "bg-primary/10 text-primary",
-              )}
-            >
-              {tab.count}
-            </span>
+            <CountBadge count={tab.count} isActive={isActive} />
           </Link>
         );
       })}

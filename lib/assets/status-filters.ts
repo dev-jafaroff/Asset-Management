@@ -61,7 +61,15 @@ export function buildStatusTabs(statuses: StatusLabelRef[]): StatusTab[] {
   ];
 }
 
+// Value of the ?status= param for a tab; "All" is the default, so it has none.
+export function toStatusParam(slug: string): string | undefined {
+  return slug === ALL_STATUS_SLUG ? undefined : slug;
+}
+
 // Unknown or missing slugs fall back to "All".
-export function findStatusTab(tabs: StatusTab[], slug?: string): StatusTab {
+export function findStatusTab<T extends StatusTab>(
+  tabs: T[],
+  slug?: string,
+): T {
   return tabs.find((tab) => tab.slug === slug) ?? tabs[0];
 }
