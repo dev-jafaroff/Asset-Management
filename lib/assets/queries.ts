@@ -27,15 +27,42 @@ export type AssetListItem = Prisma.AssetGetPayload<{
   select: typeof assetListSelect;
 }>;
 
+export const ASSET_PAGE_SIZE = 25;
+
 export type AssetListFilter = {
   type?: AssetType;
   // Condition of the selected status tab (see lib/assets/status-filters.ts).
   status?: Prisma.AssetWhereInput;
+  // Free text matched against identifiers, model and holder.
+  search?: string;
 };
+
+function buildSearchWhere(search?: string): Prisma.AssetWhereInput {
+  if (!search) return {};
+  const contains = { contains: search, mode: "insensitive" as const };
+  return {
+    OR: [
+      { assetTag: contains },
+      { serial: contains },
+      { name: contains },
+      { imei: contains },
+      { phoneNumber: contains },
+      { model: { name: contains } },
+      { model: { manufacturer: contains } },
+      { assignedTo: { displayName: contains } },
+      { assignedTo: { email: contains } },
+      { company: { name: contains } },
+    ],
+  };
+}
 
 function buildWhere(filter: AssetListFilter): Prisma.AssetWhereInput {
   return {
-    AND: [{ type: filter.type }, filter.status ?? {}],
+    AND: [
+      { type: filter.type },
+      filter.status ?? {},
+      buildSearchWhere(filter.search),
+    ],
   };
 }
 
@@ -50,13 +77,17 @@ export async function listStatusLabels() {
   });
 }
 
+// `page` is 1-based.
 export async function listAssets(
   filter: AssetListFilter = {},
+  page = 1,
 ): Promise<AssetListItem[]> {
   return prisma.asset.findMany({
     where: buildWhere(filter),
     select: assetListSelect,
     orderBy: [{ assetTag: "asc" }, { id: "asc" }],
+    skip: (page - 1) * ASSET_PAGE_SIZE,
+    take: ASSET_PAGE_SIZE,
   });
 }
 

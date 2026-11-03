@@ -2,6 +2,7 @@ import { ASSIGNED_STATUS } from "@/lib/assets/format";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { StatusType } from "@/lib/generated/prisma/enums";
 
+export const STATUS_PARAM = "status";
 export const ALL_STATUS_SLUG = "all";
 
 export type StatusTab = {
