@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { AppLogo } from "./app-logo";
 
 export function MobileNav({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -39,9 +40,9 @@ export function MobileNav({ children }: { children: ReactNode }) {
 
       <SheetContent side="left" className="gap-0 bg-sidebar">
         <SheetHeader className="h-12 justify-center border-b border-sidebar-border py-0">
-          <SheetTitle className="text-sm font-semibold">
-            Asset Management
-          </SheetTitle>
+          {/* The dialog needs a title for screen readers; the logo is the visible header. */}
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <AppLogo />
         </SheetHeader>
         {children}
       </SheetContent>
