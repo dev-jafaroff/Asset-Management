@@ -5,6 +5,7 @@ import {
   assetTableFeatures,
   getAssetColumns,
 } from "@/components/assets/asset-columns";
+import { AssetTypeIcon } from "@/components/assets/asset-icons";
 import {
   Table,
   TableBody,
@@ -50,11 +51,23 @@ export function AssetTable({ assets, type }: AssetTableProps) {
         <TableBody>
           {table.getRowModel().rows.map((row) => (
             <TableRow key={row.id}>
-              {row.getAllCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  <table.FlexRender cell={cell} />
-                </TableCell>
-              ))}
+              {row.getAllCells().map((cell, index) => {
+                const content = <table.FlexRender cell={cell} />;
+
+                return (
+                  <TableCell key={cell.id}>
+                    {/* The first column identifies the asset, so it carries the type icon. */}
+                    {index === 0 ? (
+                      <span className="flex items-center gap-2">
+                        <AssetTypeIcon type={row.original.type} />
+                        {content}
+                      </span>
+                    ) : (
+                      content
+                    )}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
         </TableBody>

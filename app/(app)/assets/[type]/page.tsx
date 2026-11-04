@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AssetList, AssetListFallback } from "@/components/assets/asset-list";
 import { PageHeader } from "@/components/layout/page-header";
-import { assetTypeConfigs, getAssetTypeBySlug } from "@/lib/assets/asset-types";
+import {
+  assetTypeConfigs,
+  getAssetTypeBySlug,
+  getAssetTypePath,
+} from "@/lib/assets/asset-types";
 
 // All valid slugs are known up front, so every type page is prerendered at build time.
 export function generateStaticParams() {
@@ -32,7 +36,7 @@ export default async function AssetTypePage({
       <Suspense fallback={<AssetListFallback />}>
         <AssetList
           type={config.type}
-          basePath={`/assets/${config.slug}`}
+          basePath={getAssetTypePath(config.slug)}
           searchParams={searchParams}
         />
       </Suspense>

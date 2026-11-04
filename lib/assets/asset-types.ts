@@ -46,6 +46,13 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
   },
 ];
 
+export const ASSETS_PATH = "/assets";
+
+// List page of one asset type, e.g. "/assets/pcs".
+export function getAssetTypePath(slug: string): string {
+  return `${ASSETS_PATH}/${slug}`;
+}
+
 const TAG_SEQUENCE_DIGITS = 5;
 
 // formatAssetTag("PC-", 7) → "PC-00007"

@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { StatusDot } from "@/components/assets/status-badge";
 import { CountBadge } from "@/components/shared/count-badge";
+import { ASSETS_PATH } from "@/lib/assets/asset-types";
 import { listStatusTabsWithCounts } from "@/lib/assets/queries";
 import { ALL_STATUS_SLUG, STATUS_PARAM } from "@/lib/assets/status-filters";
 import { FilterNavLink } from "./nav-link";
@@ -22,7 +23,7 @@ export async function StatusNav() {
     .map((tab) => (
       <FilterNavLink
         key={tab.slug}
-        pathname="/assets"
+        pathname={ASSETS_PATH}
         param={STATUS_PARAM}
         value={tab.slug}
         label={tab.label}
