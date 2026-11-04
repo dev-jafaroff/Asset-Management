@@ -2,19 +2,20 @@ import {
   House,
   Keyboard,
   KeyRound,
-  Laptop,
   LayoutGrid,
-  Monitor,
   Package,
-  Printer,
   RefreshCw,
   ScanLine,
-  Server,
-  Smartphone,
   Tags,
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { assetTypeIcons } from "@/components/assets/asset-icons";
+import {
+  ASSETS_PATH,
+  assetTypeConfigs,
+  getAssetTypePath,
+} from "@/lib/assets/asset-types";
 import type { Role } from "@/lib/current-user";
 
 export type NavLinkItem = {
@@ -51,24 +52,25 @@ export const navSections: NavSection[] = [
       {
         label: "Assets",
         icon: Package,
-        basePath: "/assets",
+        basePath: ASSETS_PATH,
         items: [
           {
             label: "All assets",
-            href: "/assets",
+            href: ASSETS_PATH,
             icon: LayoutGrid,
             exact: true,
           },
-          { label: "PCs", href: "/assets/pcs", icon: Laptop },
-          { label: "Monitors", href: "/assets/monitors", icon: Monitor },
+          // One link per asset type, so a new type shows up here by itself.
+          ...assetTypeConfigs.map((config) => ({
+            label: config.label,
+            href: getAssetTypePath(config.slug),
+            icon: assetTypeIcons[config.type],
+          })),
           {
             label: "Accessories",
-            href: "/assets/accessories",
+            href: `${ASSETS_PATH}/accessories`,
             icon: Keyboard,
           },
-          { label: "Printers", href: "/assets/printers", icon: Printer },
-          { label: "Phones", href: "/assets/phones", icon: Smartphone },
-          { label: "Virtual machines", href: "/assets/vms", icon: Server },
         ],
       },
       { label: "Licenses", href: "/licenses", icon: KeyRound },

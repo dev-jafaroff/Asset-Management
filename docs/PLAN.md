@@ -55,6 +55,7 @@ The sync job and the migration script write their results directly to PostgreSQL
 - **Legacy QR:** the `/hardware/[id]` route finds the asset by `legacySnipeId` and redirects to the new page; the old domain is kept or redirected.
 - **New QR:** `/a/[assetTag]` — a system-independent, immutable format.
 - **Users:** all employees are synced from Entra ID via Graph, so items can be assigned before a person ever signs in; the app role only matters for people who sign in.
+- **Icons:** `lucide-react` (only imported icons are bundled). One registry decides which icon an item type uses (`components/assets/asset-icons.tsx`); tables, sidebar, dashboard and scan read from it. Icons lucide lacks are added there with `createLucideIcon`, so they work the same way. Accessory categories get an icon key when the accessories pages are built.
 
 ### Item types
 
@@ -94,6 +95,25 @@ Core rules:
 - Asset tag format continues the existing convention: `PC-00001`, `MON-00001`, `PRN-00001`; the next number per prefix is assigned automatically. Phones and VMs have no tag.
 - A VM is assigned to a company (`companyId`), never to a user.
 - Accessories in stock = `totalQuantity` minus the sum of open assignments.
+
+### Statuses
+
+Status labels live in the database and can be edited in Lookup tables; list tabs and the sidebar follow them. "Assigned" is not a label: it is derived from the holder (a user, or a company for VMs).
+
+| Label      | Type         | Meaning                                           |
+| ---------- | ------------ | ------------------------------------------------- |
+| In stock   | DEPLOYABLE   | New, unopened; ready to hand out                  |
+| In storage | DEPLOYABLE   | Used and returned; ready to hand out              |
+| Pending    | PENDING      | With IT but not ready to hand out yet (see below) |
+| In repair  | UNDEPLOYABLE | Sent for repair                                   |
+| Archived   | ARCHIVED     | Retired; kept for history, never deleted          |
+
+Pending was not used in Snipe-IT; it is used from now on for:
+
+- Setup in progress: Autopilot / Intune enrollment, labeling
+- Leaver devices: not returned yet, or returned and waiting for a wipe
+- Diagnosis: came back with a problem, repair or storage not decided yet
+- (Planned, Phase 4) Devices found in Intune that are not in the system yet, until an admin reviews them
 
 ## Phases
 
@@ -148,7 +168,9 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 ### Phase 3 — Core features
 
-- [ ] Asset list: table, status tabs, search, filters (type, status, company, category), pagination
+- [x] Asset list: table per type, status tabs, search, pagination, sidebar "By status"
+- [x] Type icons in tables and sidebar from one icon registry
+- [ ] Asset list filters (company, location, model)
 - [ ] Bulk actions on selected assets: check out, check in, change status, print labels
 - [ ] Asset detail page and history timeline
 - [ ] Create and edit form per type (Intune fields read-only, phone number for phones, company for VMs)

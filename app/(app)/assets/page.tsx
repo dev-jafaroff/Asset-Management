@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AssetList, AssetListFallback } from "@/components/assets/asset-list";
 import { PageHeader } from "@/components/layout/page-header";
+import { ASSETS_PATH } from "@/lib/assets/asset-types";
 
 export const metadata: Metadata = {
   title: "All assets",
@@ -16,7 +17,7 @@ export default function AllAssetsPage({ searchParams }: PageProps<"/assets">) {
       />
 
       <Suspense fallback={<AssetListFallback />}>
-        <AssetList basePath="/assets" searchParams={searchParams} />
+        <AssetList basePath={ASSETS_PATH} searchParams={searchParams} />
       </Suspense>
     </>
   );

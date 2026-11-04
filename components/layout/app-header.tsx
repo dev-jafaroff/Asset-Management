@@ -1,4 +1,5 @@
 import { SearchForm } from "@/components/shared/search-form";
+import { ASSETS_PATH } from "@/lib/assets/asset-types";
 import type { CurrentUser } from "@/lib/current-user";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
@@ -21,7 +22,7 @@ export function AppHeader({ user }: { user: CurrentUser }) {
       </MobileNav>
 
       <SearchForm
-        action="/assets"
+        action={ASSETS_PATH}
         label="Search assets"
         placeholder="Search by tag, serial or name"
         className="max-w-sm"
