@@ -81,6 +81,11 @@ export function getAssetTypePath(slug: string): string {
   return `${ASSETS_PATH}/${slug}`;
 }
 
+// Detail page of one asset, e.g. "/assets/pcs/7".
+export function getAssetPath(type: AssetType, id: number): string {
+  return `${getAssetTypePath(getAssetTypeConfig(type).slug)}/${id}`;
+}
+
 const TAG_SEQUENCE_DIGITS = 5;
 
 // formatAssetTag("PC-", 7) → "PC-00007"

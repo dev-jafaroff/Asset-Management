@@ -8,7 +8,7 @@ import { buildStatusTabs, type StatusTab } from "@/lib/assets/status-filters";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
-const assetListSelect = {
+export const assetListSelect = {
   id: true,
   type: true,
   assetTag: true,

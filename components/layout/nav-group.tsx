@@ -2,8 +2,9 @@
 
 import { ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { isPathWithin } from "./nav-link";
 
 type NavGroupProps = {
   label: string;
@@ -12,11 +13,33 @@ type NavGroupProps = {
   children: ReactNode;
 };
 
-export function NavGroup({ label, icon, basePath, children }: NavGroupProps) {
-  const pathname = usePathname();
-  const isInGroup =
-    pathname === basePath || pathname.startsWith(`${basePath}/`);
+// Collapsible sidebar group, open while the current page is inside it.
+// On pages with an id in the URL the path is only known per request, so the
+// group first renders closed and opens once the path streams in.
+export function NavGroup(props: NavGroupProps) {
+  return (
+    <Suspense fallback={<NavGroupMenu {...props} isInGroup={false} />}>
+      <ActiveNavGroup {...props} />
+    </Suspense>
+  );
+}
 
+function ActiveNavGroup(props: NavGroupProps) {
+  const pathname = usePathname();
+  return (
+    <NavGroupMenu
+      {...props}
+      isInGroup={isPathWithin(pathname, props.basePath)}
+    />
+  );
+}
+
+function NavGroupMenu({
+  label,
+  icon,
+  children,
+  isInGroup,
+}: NavGroupProps & { isInGroup: boolean }) {
   const [isOpen, setIsOpen] = useState(isInGroup);
   const [wasInGroup, setWasInGroup] = useState(isInGroup);
 

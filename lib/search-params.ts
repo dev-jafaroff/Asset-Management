@@ -1,5 +1,5 @@
-// Helpers for list pages whose state (search, filters, page) lives in the URL,
-// so a filtered view can be shared and the back button works.
+// Helpers for URL params: record ids and list state (search, filters, page).
+// List state lives in the URL, so a filtered view can be shared and Back works.
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
