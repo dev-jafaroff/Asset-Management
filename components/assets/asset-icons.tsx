@@ -1,9 +1,11 @@
 import {
+  Cctv,
   Laptop,
   Monitor,
   Printer,
   Server,
   Smartphone,
+  Wifi,
   type LucideIcon,
 } from "lucide-react";
 import { IconTile, type IconTileSize } from "@/components/shared/icon-tile";
@@ -19,6 +21,8 @@ export const assetTypeIcons: Record<AssetType, LucideIcon> = {
   PRINTER: Printer,
   PHONE: Smartphone,
   VM: Server,
+  ACCESS_POINT: Wifi,
+  CAMERA: Cctv,
 };
 
 type AssetTypeIconProps = {

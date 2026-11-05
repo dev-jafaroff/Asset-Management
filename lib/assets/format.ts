@@ -1,8 +1,15 @@
+import {
+  getAssetTypeConfig,
+  type AssignTarget,
+} from "@/lib/assets/asset-types";
 import type { AssetListItem } from "@/lib/assets/queries";
 
 type AssetIdentity = Pick<AssetListItem, "id" | "assetTag" | "name">;
 type AssetModelName = NonNullable<AssetListItem["model"]>;
-type AssetAssignment = Pick<AssetListItem, "type" | "assignedTo" | "company">;
+type AssetAssignment = Pick<
+  AssetListItem,
+  "type" | "assignedTo" | "company" | "location"
+>;
 type AssetWithStatus = AssetAssignment & Pick<AssetListItem, "status">;
 
 export type DisplayStatus = { label: string; color: string };
@@ -23,10 +30,18 @@ export function formatModelName(model: AssetModelName | null): string | null {
   return [model.manufacturer, model.name].filter(Boolean).join(" ");
 }
 
-// VMs are assigned to a company, every other type to a user.
+const holderNames: Record<
+  AssignTarget,
+  (asset: AssetAssignment) => string | null
+> = {
+  user: (asset) => asset.assignedTo?.displayName ?? null,
+  company: (asset) => asset.company?.name ?? null,
+  location: (asset) => asset.location?.name ?? null,
+};
+
+// Who or where the asset is handed out to, per its type's assignTo.
 export function getAssetHolder(asset: AssetAssignment): string | null {
-  if (asset.type === "VM") return asset.company?.name ?? null;
-  return asset.assignedTo?.displayName ?? null;
+  return holderNames[getAssetTypeConfig(asset.type).assignTo](asset);
 }
 
 // Database equivalent: assignedWhere in lib/assets/status-filters.ts.

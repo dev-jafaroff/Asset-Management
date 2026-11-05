@@ -2,7 +2,11 @@
 // Requires the base seed (`npx prisma db seed`) for statuses, companies and accessory categories.
 import "dotenv/config";
 import { faker } from "@faker-js/faker";
-import { formatAssetTag, getAssetTypeConfig } from "@/lib/assets/asset-types";
+import {
+  formatAssetTag,
+  getAssetTypeConfig,
+  type AssetTypeConfig,
+} from "@/lib/assets/asset-types";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
@@ -30,6 +34,8 @@ const assetCounts: Record<AssetType, number> = {
   PRINTER: 6,
   PHONE: 20,
   VM: 8,
+  ACCESS_POINT: 12,
+  CAMERA: 10,
 };
 
 const purchaseCostRanges: Partial<Record<AssetType, [number, number]>> = {
@@ -37,6 +43,8 @@ const purchaseCostRanges: Partial<Record<AssetType, [number, number]>> = {
   MONITOR: [180, 650],
   PRINTER: [300, 1200],
   PHONE: [250, 1100],
+  ACCESS_POINT: [120, 350],
+  CAMERA: [100, 450],
 };
 
 const departments = [
@@ -57,7 +65,15 @@ const locations = [
   "Warehouse",
 ];
 
-const assetCategories = ["Laptop", "Desktop", "Monitor", "Printer", "Phone"];
+const assetCategories = [
+  "Laptop",
+  "Desktop",
+  "Monitor",
+  "Printer",
+  "Phone",
+  "Access point",
+  "Camera",
+];
 
 const assetModels: {
   type: AssetType;
@@ -132,6 +148,30 @@ const assetModels: {
     manufacturer: "Apple",
     name: "iPhone 15",
   },
+  {
+    type: "ACCESS_POINT",
+    category: "Access point",
+    manufacturer: "Ubiquiti",
+    name: "UniFi U6 Pro",
+  },
+  {
+    type: "ACCESS_POINT",
+    category: "Access point",
+    manufacturer: "Ubiquiti",
+    name: "UniFi U7 Lite",
+  },
+  {
+    type: "CAMERA",
+    category: "Camera",
+    manufacturer: "Ubiquiti",
+    name: "UniFi G5 Bullet",
+  },
+  {
+    type: "CAMERA",
+    category: "Camera",
+    manufacturer: "Ubiquiti",
+    name: "UniFi G5 Dome",
+  },
 ];
 
 const accessories = [
@@ -148,7 +188,8 @@ const accessories = [
   { name: "Dell 65W USB-C charger", category: "Charger", totalQuantity: 18 },
 ];
 
-// "Assigned" is not a status: assigned assets keep a deployable label and set assignedToId.
+// "Assigned" is not a status: assigned assets keep a deployable label and set their
+// holder (a user, or a location for access points and cameras).
 const assetStates = [
   { weight: 55, value: { status: "In stock", assigned: true } },
   { weight: 10, value: { status: "In stock", assigned: false } },
@@ -186,10 +227,24 @@ function azerbaijanPhoneNumber(): string {
   return faker.helpers.replaceSymbols(`+994${operator}#######`);
 }
 
+// Labeled assets sit at a location. Location-only types (access points, cameras)
+// count as assigned once installed, so the ones in stock get no location.
+function pickLocation(
+  config: AssetTypeConfig,
+  assigned: boolean,
+  refs: Refs,
+): number | undefined {
+  if (config.assignTo === "location" && !assigned) return undefined;
+  return config.tagPrefix
+    ? faker.helpers.arrayElement(refs.locationIds)
+    : undefined;
+}
+
 // Fields that depend on the asset type.
 function typeFields(
   type: AssetType,
   index: number,
+  assigned: boolean,
   refs: Refs,
 ): Partial<Prisma.AssetUncheckedCreateInput> {
   if (type === "VM") {
@@ -208,16 +263,16 @@ function typeFields(
 
   const model = faker.helpers.arrayElement(refs.modelsByType.get(type) ?? []);
   const [minCost, maxCost] = purchaseCostRanges[type] ?? [0, 0];
-  const { tagPrefix } = getAssetTypeConfig(type);
+  const config = getAssetTypeConfig(type);
   const common = {
     serial: serial(),
     modelId: model.id,
     purchaseCost: faker.commerce.price({ min: minCost, max: maxCost }),
     purchaseDate: faker.date.past({ years: 4 }),
-    ...(tagPrefix && {
-      assetTag: formatAssetTag(tagPrefix, index),
-      locationId: faker.helpers.arrayElement(refs.locationIds),
+    ...(config.tagPrefix && {
+      assetTag: formatAssetTag(config.tagPrefix, index),
     }),
+    locationId: pickLocation(config, assigned, refs),
   };
 
   if (type === "PC") {
@@ -302,12 +357,14 @@ async function createAssets(tx: Tx, refs: Refs) {
     number,
   ][]) {
     for (let index = 1; index <= count; index++) {
+      const { assignTo } = getAssetTypeConfig(type);
       const state = faker.helpers.weightedArrayElement(
-        type === "VM" ? vmStates : assetStates,
+        assignTo === "company" ? vmStates : assetStates,
       );
-      const assignedToId = state.assigned
-        ? faker.helpers.arrayElement(refs.userIds)
-        : undefined;
+      const assignedToId =
+        state.assigned && assignTo === "user"
+          ? faker.helpers.arrayElement(refs.userIds)
+          : undefined;
 
       await tx.asset.create({
         data: {
@@ -315,7 +372,7 @@ async function createAssets(tx: Tx, refs: Refs) {
           statusId: idByName(refs.statuses, state.status),
           companyId: faker.helpers.arrayElement(refs.companyIds),
           assignedToId,
-          ...typeFields(type, index, refs),
+          ...typeFields(type, index, state.assigned, refs),
           events: {
             create: [
               { type: "CREATED" },

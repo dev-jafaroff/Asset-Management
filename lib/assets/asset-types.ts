@@ -1,11 +1,16 @@
 import type { AssetType } from "@/lib/generated/prisma/enums";
 
+// What an asset of this type is handed out to. Drives the derived "Assigned"
+// status, the status tabs and the holder column, so no code checks types by name.
+export type AssignTarget = "user" | "company" | "location";
+
 export type AssetTypeConfig = {
   type: AssetType;
   slug: string;
   label: string;
   singularLabel: string;
   tagPrefix: string | null;
+  assignTo: AssignTarget;
 };
 
 export const assetTypeConfigs: readonly AssetTypeConfig[] = [
@@ -15,13 +20,15 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     label: "PCs",
     singularLabel: "PC",
     tagPrefix: "PC-",
+    assignTo: "user",
   },
   {
     type: "MONITOR",
     slug: "monitors",
     label: "Monitors",
     singularLabel: "Monitor",
-    tagPrefix: "MON-",
+    tagPrefix: "MN-",
+    assignTo: "user",
   },
   {
     type: "PRINTER",
@@ -29,6 +36,7 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     label: "Printers",
     singularLabel: "Printer",
     tagPrefix: "PRN-",
+    assignTo: "user",
   },
   {
     type: "PHONE",
@@ -36,6 +44,7 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     label: "Phones",
     singularLabel: "Phone",
     tagPrefix: null,
+    assignTo: "user",
   },
   {
     type: "VM",
@@ -43,6 +52,25 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     label: "Virtual machines",
     singularLabel: "Virtual machine",
     tagPrefix: null,
+    // Many users share one VM.
+    assignTo: "company",
+  },
+  {
+    type: "ACCESS_POINT",
+    slug: "access-points",
+    label: "Access points",
+    singularLabel: "Access point",
+    tagPrefix: "AP-",
+    // Installed at a location; network details live in UniFi.
+    assignTo: "location",
+  },
+  {
+    type: "CAMERA",
+    slug: "cameras",
+    label: "Cameras",
+    singularLabel: "Camera",
+    tagPrefix: "CAM-",
+    assignTo: "location",
   },
 ];
 

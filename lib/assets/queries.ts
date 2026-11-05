@@ -1,4 +1,5 @@
 import { Prisma } from "@/lib/generated/prisma/client";
+import { assetTypeConfigs } from "@/lib/assets/asset-types";
 import {
   buildAssetFilterWhere,
   type AssetFilterValues,
@@ -119,13 +120,10 @@ export async function countAssetsByType(): Promise<Record<AssetType, number>> {
     _count: { _all: true },
   });
 
-  const counts: Record<AssetType, number> = {
-    PC: 0,
-    MONITOR: 0,
-    PRINTER: 0,
-    PHONE: 0,
-    VM: 0,
-  };
+  // Start every type at 0, so types without assets are still listed.
+  const counts = Object.fromEntries(
+    assetTypeConfigs.map((config) => [config.type, 0]),
+  ) as Record<AssetType, number>;
   for (const group of groups) {
     counts[group.type] = group._count._all;
   }
