@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { buildHref } from "@/lib/search-params";
+import { useRememberedHref } from "./use-remembered-list-urls";
 import { cn } from "@/lib/utils";
 
 type SidebarLinkProps = {
@@ -44,18 +45,27 @@ type NavLinkProps = {
   label: string;
   icon?: ReactNode;
   exact?: boolean;
+  // List pages: the link reopens the list as it was left (search, tab, filters).
+  rememberState?: boolean;
 };
 
 // Active when the current path matches (or is below) `href`.
-export function NavLink({ href, label, icon, exact = false }: NavLinkProps) {
+export function NavLink({
+  href,
+  label,
+  icon,
+  exact = false,
+  rememberState = false,
+}: NavLinkProps) {
   const pathname = usePathname();
+  const target = useRememberedHref(href, rememberState);
   const isActive =
     exact || href === "/"
       ? pathname === href
       : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <SidebarLink href={href} label={label} icon={icon} isActive={isActive} />
+    <SidebarLink href={target} label={label} icon={icon} isActive={isActive} />
   );
 }
 
