@@ -30,6 +30,7 @@ function SidebarItem({ item }: { item: NavItem }) {
       label={item.label}
       icon={icon}
       exact={item.exact}
+      rememberState={item.rememberState}
     />
   );
 }

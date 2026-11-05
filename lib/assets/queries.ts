@@ -45,9 +45,9 @@ export type AssetListFilter = {
   filters?: AssetFilterValues;
 };
 
-function buildSearchWhere(search?: string): Prisma.AssetWhereInput {
-  if (!search) return {};
-  const contains = { contains: search, mode: "insensitive" as const };
+// Fields one search word is matched against.
+function matchSearchTerm(term: string): Prisma.AssetWhereInput {
+  const contains = { contains: term, mode: "insensitive" as const };
   return {
     OR: [
       { assetTag: contains },
@@ -62,6 +62,13 @@ function buildSearchWhere(search?: string): Prisma.AssetWhereInput {
       { company: { name: contains } },
     ],
   };
+}
+
+// Every word must match some field, so "apple iphone 15" finds the model
+// "iPhone 15" by manufacturer "Apple", although no single field holds the whole text.
+function buildSearchWhere(search?: string): Prisma.AssetWhereInput {
+  const terms = search?.split(/\s+/).filter(Boolean) ?? [];
+  return { AND: terms.map(matchSearchTerm) };
 }
 
 function buildWhere(filter: AssetListFilter): Prisma.AssetWhereInput {
