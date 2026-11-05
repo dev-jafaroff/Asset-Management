@@ -1,3 +1,4 @@
+import { AssetFilters } from "@/components/assets/asset-filters";
 import { AssetTable } from "@/components/assets/asset-table";
 import { StatusTabs } from "@/components/assets/status-tabs";
 import {
@@ -5,6 +6,7 @@ import {
   ListPagination,
 } from "@/components/shared/list-pagination";
 import { SearchForm } from "@/components/shared/search-form";
+import { parseAssetFilters } from "@/lib/assets/asset-filters";
 import {
   ASSET_PAGE_SIZE,
   listAssets,
@@ -40,9 +42,10 @@ export async function AssetList({
 }: AssetListProps) {
   const params = await searchParams;
   const search = getParam(params, SEARCH_PARAM);
+  const filters = parseAssetFilters(params);
 
-  // Tab counts follow the search, so they show where the matches are.
-  const tabs = await listStatusTabsWithCounts({ type, search });
+  // Tab counts follow the search and filters, so they show where the matches are.
+  const tabs = await listStatusTabsWithCounts({ type, search, filters });
   const activeTab = findStatusTab(tabs, getParam(params, STATUS_PARAM));
   const total = activeTab.count;
   const pageCount = getPageCount(total, ASSET_PAGE_SIZE);
@@ -50,20 +53,28 @@ export async function AssetList({
   const page = Math.min(getPageParam(params), pageCount);
 
   const assets = await listAssets(
-    { type, search, status: activeTab.where },
+    { type, search, filters, status: activeTab.where },
     page,
   );
 
   return (
     <div className="flex flex-col gap-4">
-      <SearchForm
-        action={basePath}
-        label="Search this list"
-        placeholder="Search by tag, serial, model or user"
-        defaultValue={search}
-        preserve={{ [STATUS_PARAM]: toStatusParam(activeTab.slug) }}
-        className="max-w-sm"
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchForm
+          action={basePath}
+          label="Search this list"
+          placeholder="Search by tag, serial, model or user"
+          defaultValue={search}
+          preserve={params}
+          className="max-w-sm"
+        />
+        <AssetFilters
+          type={type}
+          values={filters}
+          basePath={basePath}
+          params={params}
+        />
+      </div>
 
       <StatusTabs
         activeSlug={activeTab.slug}

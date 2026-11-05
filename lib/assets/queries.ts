@@ -1,4 +1,8 @@
 import { Prisma } from "@/lib/generated/prisma/client";
+import {
+  buildAssetFilterWhere,
+  type AssetFilterValues,
+} from "@/lib/assets/asset-filters";
 import { buildStatusTabs, type StatusTab } from "@/lib/assets/status-filters";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
@@ -36,6 +40,8 @@ export type AssetListFilter = {
   status?: Prisma.AssetWhereInput;
   // Free text matched against identifiers, model and holder.
   search?: string;
+  // Dropdown filters (see lib/assets/asset-filters.ts).
+  filters?: AssetFilterValues;
 };
 
 function buildSearchWhere(search?: string): Prisma.AssetWhereInput {
@@ -63,6 +69,7 @@ function buildWhere(filter: AssetListFilter): Prisma.AssetWhereInput {
       { type: filter.type },
       filter.status ?? {},
       buildSearchWhere(filter.search),
+      buildAssetFilterWhere(filter.filters),
     ],
   };
 }
