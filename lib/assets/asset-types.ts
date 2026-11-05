@@ -21,7 +21,7 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     slug: "monitors",
     label: "Monitors",
     singularLabel: "Monitor",
-    tagPrefix: "MON-",
+    tagPrefix: "MN-",
   },
   {
     type: "PRINTER",

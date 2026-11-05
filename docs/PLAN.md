@@ -62,7 +62,7 @@ The sync job and the migration script write their results directly to PostgreSQL
 | Type            | Label / QR   | Tracked as                   | Assigned to | Notes                                           |
 | --------------- | ------------ | ---------------------------- | ----------- | ----------------------------------------------- |
 | PC              | Yes (`PC-`)  | One record per device        | User        | Synced from Intune                              |
-| Monitor         | Yes (`MON-`) | One record per device        | User        |                                                 |
+| Monitor         | Yes (`MN-`)  | One record per device        | User        |                                                 |
 | Printer         | Yes (`PRN-`) | One record per device        | User        |                                                 |
 | Phone           | No           | One record per device        | User        | Phone number is a column; SIMs are not separate |
 | Virtual machine | No           | One record per VM            | Company     | Many users share one VM                         |
@@ -92,7 +92,7 @@ Core rules:
 - An asset is never physically deleted; it moves to ARCHIVED status.
 - Every change is written to `AssetEvent`; history is append-only, never edited.
 - Users are created automatically on first login or from Graph; there is no manual user management.
-- Asset tag format continues the existing convention: `PC-00001`, `MON-00001`, `PRN-00001`; the next number per prefix is assigned automatically. Phones and VMs have no tag.
+- Asset tag format continues the existing convention: `PC-00001`, `MN-00001`, `PRN-00001`; the next number per prefix is assigned automatically. Phones and VMs have no tag.
 - A VM is assigned to a company (`companyId`), never to a user.
 - Accessories in stock = `totalQuantity` minus the sum of open assignments.
 
