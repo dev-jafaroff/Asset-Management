@@ -5,7 +5,7 @@ import {
   getPageCount,
   ListPagination,
 } from "@/components/shared/list-pagination";
-import { SearchForm } from "@/components/shared/search-form";
+import { ListSearch } from "@/components/shared/list-search";
 import { parseAssetFilters } from "@/lib/assets/asset-filters";
 import {
   ASSET_PAGE_SIZE,
@@ -34,6 +34,14 @@ type AssetListProps = {
   searchParams: Promise<SearchParams>;
 };
 
+// Says what narrowed the list, so a forgotten filter is easy to spot.
+function getEmptyMessage(search: string | undefined, hasFilters: boolean) {
+  const query = search ? ` “${search}”` : "";
+  if (hasFilters) return `No assets match${query} with the current filters.`;
+  if (search) return `No assets match${query}.`;
+  return "No assets with this status.";
+}
+
 // Reading searchParams makes this render per request, so the list is always fresh.
 export async function AssetList({
   type,
@@ -60,12 +68,9 @@ export async function AssetList({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <SearchForm
-          action={basePath}
+        <ListSearch
           label="Search this list"
           placeholder="Search by tag, serial, model or user"
-          defaultValue={search}
-          preserve={params}
           className="max-w-sm"
         />
         <AssetFilters
@@ -92,7 +97,7 @@ export async function AssetList({
 
       {assets.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No assets match the current filters.
+          {getEmptyMessage(search, Object.keys(filters).length > 0)}
         </p>
       ) : (
         <>
