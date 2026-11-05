@@ -193,6 +193,16 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
     status,
     assignedCompany,
   ]),
+  // Installed at a location, so there is no "Assigned to" column.
+  ACCESS_POINT: column.columns([
+    assetTag,
+    model,
+    serial,
+    status,
+    location,
+    company,
+  ]),
+  CAMERA: column.columns([assetTag, model, serial, status, location, company]),
 };
 
 const allAssetColumns: AssetColumn[] = column.columns([

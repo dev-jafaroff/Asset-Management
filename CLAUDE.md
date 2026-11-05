@@ -47,9 +47,11 @@ React Hook Form + Zod, PostgreSQL + Prisma, Auth.js (Entra ID), Microsoft Graph.
 - Intune matching: by serialNumber
 - Intune-owned fields: name, osVersion, lastIntuneSync (read-only in UI)
 - Roles: Entra groups → ADMIN / EDITOR / VIEWER
-- Asset types: PC, MONITOR, PRINTER (labeled, tag prefixes PC- / MN- / PRN-), PHONE, VM (no label)
+- Asset types: PC, MONITOR, PRINTER, ACCESS_POINT, CAMERA (labeled, tag prefixes PC- / MN- / PRN- / AP- / CAM-), PHONE, VM (no label)
+- Each type has an assignTo target in lib/assets/asset-types.ts (user / company / location); never branch on type names for assignment
 - Phone number is a column on PHONE assets; SIMs are not separate items
 - VMs are assigned to a company, never to a user
+- Access points and cameras are assigned to a location only; IP / MAC / hostname live in UniFi, not here
 - Accessories are tracked by quantity (Accessory + AccessoryAssignment), no labels
 - Licenses are not assets: separate model, later, read from Graph
 - Users: all employees synced from Entra via Graph; /users/[id] shows everything assigned

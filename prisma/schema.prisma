@@ -15,6 +15,8 @@ enum AssetType {
   PRINTER
   PHONE
   VM
+  ACCESS_POINT
+  CAMERA
 }
 
 enum AssetSource {

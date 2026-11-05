@@ -1,3 +1,4 @@
+import { assetTypeConfigs, type AssignTarget } from "@/lib/assets/asset-types";
 import { ASSIGNED_STATUS } from "@/lib/assets/format";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { StatusType } from "@/lib/generated/prisma/enums";
@@ -19,13 +20,19 @@ type StatusLabelRef = {
   color: string;
 };
 
+const holderSetWhere: Record<AssignTarget, Prisma.AssetWhereInput> = {
+  user: { assignedToId: { not: null } },
+  company: { companyId: { not: null } },
+  location: { locationId: { not: null } },
+};
+
 // Database version of isAssetAssigned() in lib/assets/format.ts:
-// VMs are assigned to a company, every other type to a user.
+// each type counts as assigned when its assignTo target is set.
 const assignedWhere: Prisma.AssetWhereInput = {
-  OR: [
-    { type: { not: "VM" }, assignedToId: { not: null } },
-    { type: "VM", companyId: { not: null } },
-  ],
+  OR: assetTypeConfigs.map((config) => ({
+    type: config.type,
+    ...holderSetWhere[config.assignTo],
+  })),
 };
 
 // "In repair" → "in-repair"
