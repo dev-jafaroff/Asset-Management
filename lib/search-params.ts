@@ -17,11 +17,25 @@ export function getParam(
   return trimmed === "" ? undefined : trimmed;
 }
 
+// Positive whole number (a page or a record id); anything else counts as missing.
+export function getPositiveIntParam(
+  params: SearchParams,
+  key: string,
+): number | undefined {
+  const value = Number(getParam(params, key));
+  return Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
 // 1-based page number; anything invalid falls back to the first page.
 export function getPageParam(params: SearchParams): number {
-  const page = Number(getParam(params, PAGE_PARAM));
-  return Number.isInteger(page) && page > 0 ? page : 1;
+  return getPositiveIntParam(params, PAGE_PARAM) ?? 1;
 }
+
+// One choice in a filter dropdown; the value is what goes in the URL.
+export type FilterOption = {
+  value: string;
+  label: string;
+};
 
 // Values to change in a link; undefined removes the param.
 export type ParamUpdates = Record<string, string | number | undefined>;
