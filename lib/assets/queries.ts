@@ -21,6 +21,7 @@ export const assetListSelect = {
   vmHost: true,
   vCpu: true,
   ramGb: true,
+  notes: true,
   updatedAt: true,
   status: { select: { id: true, name: true, type: true, color: true } },
   model: { select: { id: true, name: true, manufacturer: true } },

@@ -91,6 +91,24 @@ const location = column.accessor((asset) => asset.location?.name ?? null, {
   ),
 });
 
+// One line, cut off with "…"; the full text is shown on hover and on the detail page.
+const notes = column.accessor("notes", {
+  header: "Notes",
+  cell: (info) => {
+    const value = info.getValue();
+    return value ? (
+      <span
+        title={value}
+        className="block max-w-64 truncate text-muted-foreground"
+      >
+        {value}
+      </span>
+    ) : (
+      "—"
+    );
+  },
+});
+
 // ─── Type-specific columns ───────────────────────────────────────────────────
 
 const operatingSystem = column.accessor(
@@ -156,6 +174,7 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
     company,
     location,
     operatingSystem,
+    notes,
   ]),
   MONITOR: column.columns([
     assetTag,
@@ -165,6 +184,7 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
     assignedTo,
     company,
     location,
+    notes,
   ]),
   PRINTER: column.columns([
     assetTag,
@@ -174,6 +194,7 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
     assignedTo,
     company,
     location,
+    notes,
   ]),
   PHONE: column.columns([
     model,
@@ -183,6 +204,7 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
     assignedTo,
     company,
     operatingSystem,
+    notes,
   ]),
   VM: column.columns([
     name,
@@ -192,6 +214,7 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
     ramGb,
     status,
     assignedCompany,
+    notes,
   ]),
   // Installed at a location, so there is no "Assigned to" column.
   ACCESS_POINT: column.columns([
@@ -201,8 +224,17 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
     status,
     location,
     company,
+    notes,
   ]),
-  CAMERA: column.columns([assetTag, model, serial, status, location, company]),
+  CAMERA: column.columns([
+    assetTag,
+    model,
+    serial,
+    status,
+    location,
+    company,
+    notes,
+  ]),
 };
 
 const allAssetColumns: AssetColumn[] = column.columns([
@@ -212,6 +244,7 @@ const allAssetColumns: AssetColumn[] = column.columns([
   status,
   assignedTo,
   company,
+  notes,
 ]);
 
 export function getAssetColumns(type?: AssetType): AssetColumn[] {

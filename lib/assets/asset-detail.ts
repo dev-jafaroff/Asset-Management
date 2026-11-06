@@ -9,7 +9,6 @@ import { daysBetween, formatAge, formatDate } from "@/lib/utils";
 // Everything the list shows, plus the fields only the detail page needs.
 const assetDetailSelect = {
   ...assetListSelect,
-  notes: true,
   purchaseCost: true,
   purchaseDate: true,
   source: true,
