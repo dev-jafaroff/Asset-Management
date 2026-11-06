@@ -8,6 +8,10 @@ import {
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
+import {
+  AssetHistory,
+  AssetHistoryFallback,
+} from "@/components/assets/asset-history";
 import { AssetTypeIcon } from "@/components/assets/asset-icons";
 import { StatusBadge } from "@/components/assets/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
@@ -106,13 +110,21 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
         }
       />
 
-      <div className="flex flex-col gap-4">
-        <AssignmentCard asset={asset} />
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          {buildDetailSections(asset).map((section) => (
-            <DetailCard key={section.title} section={section} />
-          ))}
+      {/* Main column with the cards; history on the right on wide screens. */}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="flex flex-col gap-4">
+          <AssignmentCard asset={asset} />
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            {buildDetailSections(asset).map((section) => (
+              <DetailCard key={section.title} section={section} />
+            ))}
+          </div>
         </div>
+
+        {/* A long history must not hold back the cards above. */}
+        <Suspense fallback={<AssetHistoryFallback />}>
+          <AssetHistory assetId={asset.id} />
+        </Suspense>
       </div>
     </>
   );

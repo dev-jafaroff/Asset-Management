@@ -171,3 +171,68 @@ export function buildDetailSections(asset: AssetDetail): DetailSection[] {
     buildIntuneSection(asset),
   ].filter((section) => section !== null);
 }
+
+// ─── History ─────────────────────────────────────────────────────────────────
+
+// One changed field of an UPDATED or SYNC event, stored in AssetEvent.changes as
+// an array. Values are saved as shown at the time (e.g. the location's name),
+// so history stays true after a location or status is renamed.
+export type FieldChange = {
+  field: string;
+  from: string | null;
+  to: string | null;
+};
+
+function isTextOrNull(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isFieldChange(value: unknown): value is FieldChange {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "field" in value &&
+    "from" in value &&
+    "to" in value &&
+    typeof value.field === "string" &&
+    isTextOrNull(value.from) &&
+    isTextOrNull(value.to)
+  );
+}
+
+// The column is free JSON, so anything not in the expected shape is skipped.
+function parseFieldChanges(changes: Prisma.JsonValue): FieldChange[] {
+  return Array.isArray(changes) ? changes.filter(isFieldChange) : [];
+}
+
+const assetEventSelect = {
+  id: true,
+  type: true,
+  createdAt: true,
+  changes: true,
+  actor: { select: { id: true, displayName: true } },
+  targetUser: { select: { id: true, displayName: true } },
+} satisfies Prisma.AssetEventSelect;
+
+type AssetEventRow = Prisma.AssetEventGetPayload<{
+  select: typeof assetEventSelect;
+}>;
+
+export type AssetHistoryEvent = Omit<AssetEventRow, "changes"> & {
+  changes: FieldChange[];
+};
+
+// Newest first; events saved in the same moment keep the order they were written.
+export async function listAssetHistory(
+  assetId: number,
+): Promise<AssetHistoryEvent[]> {
+  const events = await prisma.assetEvent.findMany({
+    where: { assetId },
+    select: assetEventSelect,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+  return events.map((event) => ({
+    ...event,
+    changes: parseFieldChanges(event.changes),
+  }));
+}
