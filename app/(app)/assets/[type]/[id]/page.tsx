@@ -1,26 +1,19 @@
-import {
-  Building2,
-  ExternalLink,
-  LockKeyhole,
-  MapPin,
-  UserRound,
-  type LucideIcon,
-} from "lucide-react";
+import { Building2, ExternalLink, LockKeyhole, MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Suspense, type ComponentProps } from "react";
+import { Suspense, type ComponentProps, type ReactNode } from "react";
 import {
   AssetHistory,
   AssetHistoryFallback,
 } from "@/components/assets/asset-history";
-import {
-  assetSourceIcons,
-  AssetTypeIcon,
-} from "@/components/assets/asset-icons";
+import { AssetTypeIcon, SourceIcon } from "@/components/assets/asset-icons";
 import { StatusBadge } from "@/components/assets/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
+import { CopyButton } from "@/components/shared/copy-button";
+import { DateTime } from "@/components/shared/date-time";
 import { DetailList } from "@/components/shared/detail-list";
 import { IconTile } from "@/components/shared/icon-tile";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -29,12 +22,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   buildDetailSections,
   getAssetSourceBadge,
   getAssetDetail,
   getCheckedOutAt,
   type AssetDetail,
+  type DetailField,
   type DetailSection,
 } from "@/lib/assets/asset-detail";
 import {
@@ -52,7 +47,6 @@ import {
   getAssetHolder,
 } from "@/lib/assets/format";
 import { getPositiveIntParam } from "@/lib/search-params";
-import { formatDateTime } from "@/lib/utils";
 
 type AssetPageProps = PageProps<"/assets/[type]/[id]">;
 
@@ -79,16 +73,58 @@ export async function generateMetadata({
 }
 
 // The asset is read per request, so it streams in after the layout.
+// Lists use the full width for their columns; a detail page is capped, so
+// cards do not stretch into wide empty rows on large screens.
 export default function AssetPage({ params }: AssetPageProps) {
   return (
-    <Suspense fallback={<AssetPageFallback />}>
-      <AssetPageContent params={params} />
-    </Suspense>
+    <div className="max-w-screen-2xl">
+      <Suspense fallback={<AssetPageFallback />}>
+        <AssetPageContent params={params} />
+      </Suspense>
+    </div>
   );
 }
 
+// Main column with the cards; history on the right on wide screens.
+function AssetDetailGrid({
+  main,
+  aside,
+}: {
+  main: ReactNode;
+  aside: ReactNode;
+}) {
+  return (
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="flex flex-col gap-4">{main}</div>
+      {aside}
+    </div>
+  );
+}
+
+// Outline of the page while the asset loads, so nothing jumps when it arrives.
 function AssetPageFallback() {
-  return <p className="text-sm text-muted-foreground">Loading asset…</p>;
+  return (
+    <div aria-busy className="flex flex-col gap-6">
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-6 w-56" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <AssetDetailGrid
+        main={
+          <>
+            <Skeleton className="h-28 rounded-xl" />
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Skeleton className="h-72 rounded-xl" />
+              <Skeleton className="h-72 rounded-xl" />
+            </div>
+          </>
+        }
+        aside={<Skeleton className="h-96 rounded-xl" />}
+      />
+      <span className="sr-only">Loading asset…</span>
+    </div>
+  );
 }
 
 async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
@@ -113,46 +149,73 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
         ]}
         badges={
           <>
+            {asset.assetTag && (
+              <CopyButton
+                value={asset.assetTag}
+                label="asset tag"
+                className="-ml-2"
+              />
+            )}
             <StatusBadge status={getAssetDisplayStatus(asset)} />
             <SourceBadge asset={asset} />
           </>
         }
       />
 
-      {/* Main column with the cards; history on the right on wide screens. */}
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="flex flex-col gap-4">
-          <AssignmentCard asset={asset} />
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            {buildDetailSections(asset).map((section) => (
-              <DetailCard key={section.title} section={section} />
-            ))}
-          </div>
-        </div>
-
-        {/* A long history must not hold back the cards above. */}
-        <Suspense fallback={<AssetHistoryFallback />}>
-          <AssetHistory assetId={asset.id} />
-        </Suspense>
-      </div>
+      <AssetDetailGrid
+        main={
+          <>
+            <AssignmentCard asset={asset} />
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              {buildDetailSections(asset).map((section) => (
+                <DetailCard key={section.title} section={section} />
+              ))}
+            </div>
+          </>
+        }
+        aside={
+          // A long history must not hold back the cards above.
+          <Suspense fallback={<AssetHistoryFallback />}>
+            <AssetHistory assetId={asset.id} />
+          </Suspense>
+        }
+      />
     </>
   );
 }
 
 // ─── Assignment ──────────────────────────────────────────────────────────────
 
-const holderIcons: Record<AssignTarget, LucideIcon> = {
-  user: UserRound,
-  company: Building2,
-  location: MapPin,
+// People get their initials; companies and locations an icon.
+const holderAvatars: Record<AssignTarget, (holder: string) => ReactNode> = {
+  user: (holder) => <UserAvatar name={holder} />,
+  company: () => <IconTile icon={Building2} size="md" />,
+  location: () => <IconTile icon={MapPin} size="md" />,
 };
 
+// The person's email opens a new mail.
+function UserHolderDetails({ user }: { user: AssetDetail["assignedTo"] }) {
+  if (!user) return null;
+  const role = [user.department, user.jobTitle].filter(Boolean).join(" · ");
+  return (
+    <>
+      {role}
+      {role && user.email && " · "}
+      {user.email && (
+        <a
+          href={`mailto:${user.email}`}
+          className="hover:text-primary hover:underline"
+        >
+          {user.email}
+        </a>
+      )}
+    </>
+  );
+}
+
 // Second line under the holder: who the person is, or what kind of holder it is.
-const holderDetails: Record<AssignTarget, (asset: AssetDetail) => string> = {
-  user: ({ assignedTo }) =>
-    [assignedTo?.department, assignedTo?.jobTitle, assignedTo?.email]
-      .filter(Boolean)
-      .join(" · "),
+const holderDetails: Record<AssignTarget, (asset: AssetDetail) => ReactNode> = {
+  user: ({ assignedTo }) => <UserHolderDetails user={assignedTo} />,
   company: () => "Company",
   location: () => "Location",
 };
@@ -170,7 +233,7 @@ function AssignmentCard({ asset }: { asset: AssetDetail }) {
       <CardContent>
         {holder ? (
           <div className="flex flex-wrap items-center gap-3">
-            <IconTile icon={holderIcons[assignTo]} size="md" />
+            {holderAvatars[assignTo](holder)}
             <div className="min-w-0 flex-1">
               <p className="font-medium">{holder}</p>
               <p className="text-xs text-muted-foreground">
@@ -181,9 +244,10 @@ function AssignmentCard({ asset }: { asset: AssetDetail }) {
               <p className="text-right text-xs text-muted-foreground">
                 Checked out
                 <br />
-                <span className="font-medium text-foreground">
-                  {formatDateTime(checkedOutAt)}
-                </span>
+                <DateTime
+                  date={checkedOutAt}
+                  className="font-medium text-foreground"
+                />
               </p>
             )}
           </div>
@@ -207,43 +271,63 @@ function ExternalAnchor(props: ComponentProps<"a">) {
   return <a target="_blank" rel="noopener noreferrer" {...props} />;
 }
 
-// Where the record came from, e.g. "Intune" with a cloud icon. Opens the
-// record in that system when it has a page there.
+// Where the record came from, e.g. "Intune" with a cloud icon. For Intune the
+// cloud is colored by how fresh the data is (details on hover and in the
+// Intune card, which also links to the device in Intune).
 function SourceBadge({ asset }: { asset: AssetDetail }) {
   const badge = getAssetSourceBadge(asset);
   if (!badge) return null;
-  const Icon = assetSourceIcons[badge.source];
-  const content = (
-    <>
-      {Icon && <Icon aria-hidden />}
-      {badge.label}
-      {badge.href && <ExternalLink aria-hidden />}
-    </>
-  );
+  const status = badge.syncStatus?.label;
 
-  return badge.href ? (
-    <Badge
-      variant="outline"
-      render={
-        <ExternalAnchor href={badge.href} title={`Open in ${badge.label}`} />
-      }
-    >
-      {content}
+  return (
+    <Badge variant="outline" title={status && `${badge.label}: ${status}`}>
+      <SourceIcon source={badge.source} syncState={badge.syncStatus?.state} />
+      {badge.label}
+      {status && <span className="sr-only">: {status}</span>}
     </Badge>
+  );
+}
+
+// Dates as relative time, links (mailto:, tel:) and a copy button where set.
+// Empty values stay null, so the list shows its dash.
+function renderFieldValue(field: DetailField): ReactNode {
+  const { value, href, copyable } = field;
+  if (value === null || value === "") return null;
+  if (value instanceof Date) return <DateTime date={value} />;
+
+  const text = String(value);
+  const content = href ? (
+    <a href={href} className="text-primary hover:underline">
+      {text}
+    </a>
   ) : (
-    <Badge variant="outline">{content}</Badge>
+    text
+  );
+  if (!copyable) return content;
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      {content}
+      <CopyButton
+        value={text}
+        label={field.label.toLowerCase()}
+        className="-my-1"
+      />
+    </span>
   );
 }
 
 function DetailCard({ section }: { section: DetailSection }) {
-  const SourceIcon = section.source && assetSourceIcons[section.source];
-
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {SourceIcon && (
-            <SourceIcon aria-hidden className="size-4 text-primary" />
+          {section.source && (
+            <SourceIcon
+              source={section.source}
+              syncState={section.syncState}
+              className="size-4 text-primary"
+            />
           )}
           {section.title}
           {section.readOnly && (
@@ -266,7 +350,13 @@ function DetailCard({ section }: { section: DetailSection }) {
         )}
       </CardHeader>
       <CardContent>
-        <DetailList items={section.fields} />
+        <DetailList
+          items={section.fields.map((field) => ({
+            label: field.label,
+            value: renderFieldValue(field),
+            mono: field.mono,
+          }))}
+        />
       </CardContent>
     </Card>
   );

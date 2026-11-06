@@ -1,7 +1,7 @@
 import { SearchForm } from "@/components/shared/search-form";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { ASSETS_PATH } from "@/lib/assets/asset-types";
 import type { CurrentUser } from "@/lib/current-user";
-import { getInitials } from "@/lib/utils";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
 
@@ -24,9 +24,7 @@ export function AppHeader({ user }: { user: CurrentUser }) {
           <p className="text-sm font-medium">{user.displayName}</p>
           <p className="text-xs text-muted-foreground">{user.role}</p>
         </div>
-        <div className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {getInitials(user.displayName)}
-        </div>
+        <UserAvatar name={user.displayName} size="lg" />
       </div>
     </header>
   );

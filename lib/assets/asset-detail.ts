@@ -4,7 +4,7 @@ import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
 import { assetListSelect } from "@/lib/assets/queries";
 import { formatModelName } from "@/lib/assets/format";
 import { prisma } from "@/lib/prisma";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { daysBetween, formatAge, formatDate } from "@/lib/utils";
 
 // Everything the list shows, plus the fields only the detail page needs.
 const assetDetailSelect = {
@@ -73,35 +73,85 @@ export function getIntuneDeviceUrl(asset: AssetDetail): string | null {
     : null;
 }
 
-// Badge next to the title; links to the source system when it has a page.
+// ─── Intune sync status ──────────────────────────────────────────────────────
+
+// A device that has not synced for longer than this needs a look.
+const INTUNE_STALE_AFTER_DAYS = 7;
+
+export type IntuneSyncState = "synced" | "stale" | "missing" | "never";
+
+export type IntuneSyncStatus = { state: IntuneSyncState; label: string };
+
+type IntuneSyncFields = Pick<AssetDetail, "lastIntuneSync" | "missingInIntune">;
+
+// How fresh the Intune data of a device is. Missing wins over everything:
+// the last known sync time no longer matters once Intune lost the device.
+export function getIntuneSyncStatus(
+  asset: IntuneSyncFields,
+  now: Date = new Date(),
+): IntuneSyncStatus {
+  if (asset.missingInIntune) {
+    return { state: "missing", label: "Missing in the last sync" };
+  }
+  if (!asset.lastIntuneSync) {
+    return { state: "never", label: "Never synced" };
+  }
+  const days = daysBetween(asset.lastIntuneSync, now);
+  if (days > INTUNE_STALE_AFTER_DAYS) {
+    return { state: "stale", label: `Not synced for ${days} days` };
+  }
+  return { state: "synced", label: "Up to date" };
+}
+
+export type AssetSourceBadge = {
+  source: AssetSource;
+  label: string;
+  // Intune records also show how fresh their data is.
+  syncStatus: IntuneSyncStatus | null;
+};
+
+// Badge next to the title: where the record came from.
 export function getAssetSourceBadge(
   asset: AssetDetail,
-): { source: AssetSource; label: string; href: string | null } | null {
+): AssetSourceBadge | null {
   const label = assetSourceLabels[asset.source];
   if (!label) return null;
-  const href = asset.source === "INTUNE" ? getIntuneDeviceUrl(asset) : null;
-  return { source: asset.source, label, href };
+  const syncStatus =
+    asset.source === "INTUNE" ? getIntuneSyncStatus(asset) : null;
+  return { source: asset.source, label, syncStatus };
 }
 
 // ─── Detail sections ─────────────────────────────────────────────────────────
 
 export type DetailField = {
   label: string;
-  value: string | number | null;
+  // A date is shown as relative time ("2 hours ago"), exact on hover.
+  value: string | number | Date | null;
   // Identifiers (serials, IMEIs, versions) read better in a monospace font.
   mono?: boolean;
+  // Adds a copy button, for values often pasted elsewhere (serial, IMEI).
+  copyable?: boolean;
+  // Makes the value a link, e.g. mailto: or tel:.
+  href?: string;
 };
 
 export type DetailSection = {
   title: string;
   // System the fields come from; its icon is shown next to the title.
   source?: AssetSource;
+  // Colors that icon by how fresh the data is.
+  syncState?: IntuneSyncState;
   // Opens the record in that system.
   link?: { label: string; href: string };
   // Fields owned by another system (e.g. Intune) cannot be edited here.
   readOnly?: boolean;
   fields: DetailField[];
 };
+
+// "+994 50 123 45 67" → "tel:+994501234567"
+function getPhoneHref(phoneNumber: string | null): string | undefined {
+  return phoneNumber ? `tel:${phoneNumber.replace(/[^\d+]/g, "")}` : undefined;
+}
 
 // Purchase cost and currency, e.g. "1,480.00 ₼".
 const costFormat = new Intl.NumberFormat("en-GB", {
@@ -122,12 +172,16 @@ function buildDetailsSection(asset: AssetDetail): DetailSection {
   return {
     title: "Details",
     fields: [
-      { label: "Serial", value: asset.serial, mono: true },
+      { label: "Serial", value: asset.serial, mono: true, copyable: true },
       { label: "Model", value: formatModelName(asset.model) },
       { label: "Category", value: asset.model?.category.name ?? null },
       { label: "Company", value: asset.company?.name ?? null },
       { label: "Location", value: asset.location?.name ?? null },
       { label: "Purchased", value: formatPurchase(asset) },
+      {
+        label: "Age",
+        value: asset.purchaseDate && formatAge(asset.purchaseDate),
+      },
       { label: "Notes", value: asset.notes },
     ],
   };
@@ -144,8 +198,14 @@ const typeSections: Record<
   PHONE: (asset) => ({
     title: "Phone",
     fields: [
-      { label: "IMEI", value: asset.imei, mono: true },
-      { label: "Phone number", value: asset.phoneNumber, mono: true },
+      { label: "IMEI", value: asset.imei, mono: true, copyable: true },
+      {
+        label: "Phone number",
+        value: asset.phoneNumber,
+        mono: true,
+        copyable: true,
+        href: getPhoneHref(asset.phoneNumber),
+      },
       { label: "OS", value: asset.operatingSystem },
     ],
   }),
@@ -170,23 +230,19 @@ const typeSections: Record<
 function buildIntuneSection(asset: AssetDetail): DetailSection | null {
   if (asset.source !== "INTUNE") return null;
   const intuneUrl = getIntuneDeviceUrl(asset);
+  const syncStatus = getIntuneSyncStatus(asset);
   return {
     title: "Intune",
     source: "INTUNE",
+    syncState: syncStatus.state,
     readOnly: true,
     link: intuneUrl ? { label: "Open in Intune", href: intuneUrl } : undefined,
     fields: [
       { label: "Device name", value: asset.name },
       { label: "OS", value: asset.operatingSystem },
       { label: "OS version", value: asset.osVersion, mono: true },
-      {
-        label: "Last sync",
-        value: asset.lastIntuneSync && formatDateTime(asset.lastIntuneSync),
-      },
-      {
-        label: "In Intune",
-        value: asset.missingInIntune ? "Missing in the last sync" : "Yes",
-      },
+      { label: "Last sync", value: asset.lastIntuneSync },
+      { label: "Sync status", value: syncStatus.label },
     ],
   };
 }

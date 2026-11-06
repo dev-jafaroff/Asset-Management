@@ -11,7 +11,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { IconTile, type IconTileSize } from "@/components/shared/icon-tile";
+import type { IntuneSyncState } from "@/lib/assets/asset-detail";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
+import { cn } from "@/lib/utils";
 
 // Icon registry: the one place that decides which icon an asset type uses
 // (tables, sidebar, dashboard, scan results).
@@ -44,6 +46,33 @@ export const assetSourceIcons: Record<AssetSource, LucideIcon | null> = {
   INTUNE: SourceCloud,
   SNIPEIT: ArrowDownToLine,
 };
+
+// Blue (Intune's own color) is the normal state; the others need a look.
+const syncStateTones: Record<IntuneSyncState, string> = {
+  synced: "text-primary",
+  stale: "text-amber-600 dark:text-amber-400",
+  missing: "text-destructive",
+  never: "text-muted-foreground",
+};
+
+type SourceIconProps = {
+  source: AssetSource;
+  // Colors the icon by how fresh the synced data is.
+  syncState?: IntuneSyncState;
+  className?: string;
+};
+
+// Icon of the system a record came from; nothing for manual records.
+export function SourceIcon({ source, syncState, className }: SourceIconProps) {
+  const Icon = assetSourceIcons[source];
+  if (!Icon) return null;
+  return (
+    <Icon
+      aria-hidden
+      className={cn(className, syncState && syncStateTones[syncState])}
+    />
+  );
+}
 
 type AssetTypeIconProps = {
   type: AssetType;
