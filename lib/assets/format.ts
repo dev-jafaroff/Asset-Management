@@ -4,7 +4,7 @@ import {
 } from "@/lib/assets/asset-types";
 import type { AssetListItem } from "@/lib/assets/queries";
 
-type AssetIdentity = Pick<AssetListItem, "id" | "assetTag" | "name">;
+type AssetIdentity = Pick<AssetListItem, "id" | "assetTag" | "name" | "model">;
 type AssetModelName = NonNullable<AssetListItem["model"]>;
 type AssetAssignment = Pick<
   AssetListItem,
@@ -20,9 +20,14 @@ export const ASSIGNED_STATUS: DisplayStatus = {
   color: "var(--primary)",
 };
 
-// Labeled assets are known by their tag; phones and VMs by their name.
+// Labeled assets are known by their tag, VMs by their name, phones by their model.
 export function getAssetDisplayName(asset: AssetIdentity): string {
-  return asset.assetTag ?? asset.name ?? `#${asset.id}`;
+  return (
+    asset.assetTag ??
+    asset.name ??
+    formatModelName(asset.model) ??
+    `#${asset.id}`
+  );
 }
 
 export function formatModelName(model: AssetModelName | null): string | null {

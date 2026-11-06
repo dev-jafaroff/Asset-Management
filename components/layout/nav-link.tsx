@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { buildHref } from "@/lib/search-params";
 import { useRememberedHref } from "./use-remembered-list-urls";
 import { cn } from "@/lib/utils";
@@ -49,8 +49,32 @@ type NavLinkProps = {
   rememberState?: boolean;
 };
 
+// True on `basePath` itself and on every page below it.
+export function isPathWithin(pathname: string, basePath: string): boolean {
+  return pathname === basePath || pathname.startsWith(`${basePath}/`);
+}
+
 // Active when the current path matches (or is below) `href`.
-export function NavLink({
+// On pages with an id in the URL (e.g. /assets/pcs/7) the path is only known
+// per request, so the link first renders inactive and then streams in.
+export function NavLink(props: NavLinkProps) {
+  return (
+    <Suspense
+      fallback={
+        <SidebarLink
+          href={props.href}
+          label={props.label}
+          icon={props.icon}
+          isActive={false}
+        />
+      }
+    >
+      <ActiveNavLink {...props} />
+    </Suspense>
+  );
+}
+
+function ActiveNavLink({
   href,
   label,
   icon,
@@ -60,9 +84,7 @@ export function NavLink({
   const pathname = usePathname();
   const target = useRememberedHref(href, rememberState);
   const isActive =
-    exact || href === "/"
-      ? pathname === href
-      : pathname === href || pathname.startsWith(`${href}/`);
+    exact || href === "/" ? pathname === href : isPathWithin(pathname, href);
 
   return (
     <SidebarLink href={target} label={label} icon={icon} isActive={isActive} />

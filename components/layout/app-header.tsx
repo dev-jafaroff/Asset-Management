@@ -1,18 +1,9 @@
 import { SearchForm } from "@/components/shared/search-form";
 import { ASSETS_PATH } from "@/lib/assets/asset-types";
 import type { CurrentUser } from "@/lib/current-user";
+import { getInitials } from "@/lib/utils";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 export function AppHeader({ user }: { user: CurrentUser }) {
   return (

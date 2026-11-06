@@ -2,7 +2,7 @@
 
 import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ComponentProps, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,11 +13,40 @@ import {
 } from "@/components/ui/sheet";
 import { AppLogo } from "./app-logo";
 
+function MenuButton(props: ComponentProps<typeof Button>) {
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Open navigation"
+      className="md:hidden"
+      {...props}
+    />
+  );
+}
+
+// On pages with an id in the URL the path is only known per request, so a
+// disabled button stands in until the menu streams in.
 export function MobileNav({ children }: { children: ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <MenuButton disabled>
+          <Menu />
+        </MenuButton>
+      }
+    >
+      <MobileNavSheet>{children}</MobileNavSheet>
+    </Suspense>
+  );
+}
+
+function MobileNavSheet({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
 
+  // Close the menu once a link in it has navigated.
   if (pathname !== lastPathname) {
     setLastPathname(pathname);
     setIsOpen(false);
@@ -25,16 +54,7 @@ export function MobileNav({ children }: { children: ReactNode }) {
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Open navigation"
-            className="md:hidden"
-          />
-        }
-      >
+      <SheetTrigger render={<MenuButton />}>
         <Menu />
       </SheetTrigger>
 
