@@ -15,14 +15,6 @@ const assetDetailSelect = {
   lastIntuneSync: true,
   missingInIntune: true,
   intuneId: true,
-  model: {
-    select: {
-      id: true,
-      name: true,
-      manufacturer: true,
-      category: { select: { name: true } },
-    },
-  },
   assignedTo: {
     select: {
       id: true,
@@ -223,6 +215,7 @@ const typeSections: Record<
   }),
   ACCESS_POINT: () => null,
   CAMERA: () => null,
+  OTHER: () => null,
 };
 
 // Shown for any asset synced from Intune, whatever its type.

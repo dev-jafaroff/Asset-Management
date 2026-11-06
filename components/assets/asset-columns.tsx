@@ -58,6 +58,16 @@ const model = column.accessor((asset) => formatModelName(asset.model), {
   cell: (info) => orDash(info.getValue()),
 });
 
+// What the device is, e.g. "Card reader" on the mixed "Other" list.
+const category = column.accessor(
+  (asset) => asset.model?.category.name ?? null,
+  {
+    id: "category",
+    header: "Category",
+    cell: (info) => orDash(info.getValue()),
+  },
+);
+
 const serial = column.accessor("serial", {
   header: "Serial",
   cell: (info) => (
@@ -228,6 +238,16 @@ const columnsByType: Record<AssetType, AssetColumn[]> = {
   ]),
   CAMERA: column.columns([
     assetTag,
+    model,
+    serial,
+    status,
+    location,
+    company,
+    notes,
+  ]),
+  OTHER: column.columns([
+    assetTag,
+    category,
     model,
     serial,
     status,

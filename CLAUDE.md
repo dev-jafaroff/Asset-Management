@@ -47,7 +47,8 @@ React Hook Form + Zod, PostgreSQL + Prisma, Auth.js (Entra ID), Microsoft Graph.
 - Intune matching: by serialNumber
 - Intune-owned fields: name, osVersion, lastIntuneSync (read-only in UI)
 - Roles: Entra groups → ADMIN / EDITOR / VIEWER
-- Asset types: PC, MONITOR, PRINTER, ACCESS_POINT, CAMERA (labeled, tag prefixes PC- / MN- / PRN- / AP- / CAM-), PHONE, VM (no label)
+- Asset types: PC, MONITOR, PRINTER, ACCESS_POINT, CAMERA, OTHER (labeled, tag prefixes PC- / MN- / PRN- / AP- / CAM- / OT-), PHONE, VM (no label)
+- OTHER holds one-off devices (e.g. the server room card reader), assigned to a location; the model category says what each is
 - Each type has an assignTo target in lib/assets/asset-types.ts (user / company / location); never branch on type names for assignment
 - Phone number is a column on PHONE assets; SIMs are not separate items
 - VMs are assigned to a company, never to a user

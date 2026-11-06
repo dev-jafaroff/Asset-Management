@@ -36,6 +36,7 @@ const assetCounts: Record<AssetType, number> = {
   VM: 8,
   ACCESS_POINT: 12,
   CAMERA: 10,
+  OTHER: 2,
 };
 
 const purchaseCostRanges: Partial<Record<AssetType, [number, number]>> = {
@@ -45,6 +46,7 @@ const purchaseCostRanges: Partial<Record<AssetType, [number, number]>> = {
   PHONE: [250, 1100],
   ACCESS_POINT: [120, 350],
   CAMERA: [100, 450],
+  OTHER: [80, 400],
 };
 
 const departments = [
@@ -171,6 +173,12 @@ const assetModels: {
     category: "Camera",
     manufacturer: "Ubiquiti",
     name: "UniFi G5 Dome",
+  },
+  {
+    type: "OTHER",
+    category: "Card reader",
+    manufacturer: "HID",
+    name: "Signo 20",
   },
 ];
 

@@ -5,6 +5,7 @@ import {
   Monitor,
   Printer,
   Server,
+  Shapes,
   Smartphone,
   Wifi,
   createLucideIcon,
@@ -27,6 +28,7 @@ export const assetTypeIcons: Record<AssetType, LucideIcon> = {
   VM: Server,
   ACCESS_POINT: Wifi,
   CAMERA: Cctv,
+  OTHER: Shapes,
 };
 
 // Rounder cloud than lucide's, as in the design mockups.
