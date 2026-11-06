@@ -25,6 +25,58 @@ export function formatDateTime(date: Date): string {
   return dateTimeFormat.format(date);
 }
 
+const relativeTimeFormat = new Intl.RelativeTimeFormat(APP_LOCALE, {
+  numeric: "auto",
+});
+
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+// Largest unit first; a unit is used once the gap reaches its size.
+const relativeTimeUnits: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365 * DAY],
+  ["month", 30 * DAY],
+  ["day", DAY],
+  ["hour", HOUR],
+  ["minute", MINUTE],
+];
+
+// formatRelativeTime(date) → "2 hours ago", "yesterday", "in 3 days"
+export function formatRelativeTime(date: Date, now: Date = new Date()): string {
+  const diff = date.getTime() - now.getTime();
+  for (const [unit, size] of relativeTimeUnits) {
+    if (Math.abs(diff) >= size) {
+      return relativeTimeFormat.format(Math.trunc(diff / size), unit);
+    }
+  }
+  return "just now";
+}
+
+// Whole days between two dates, e.g. to see how long ago something happened.
+export function daysBetween(from: Date, to: Date): number {
+  return Math.floor((to.getTime() - from.getTime()) / DAY);
+}
+
+// formatAge(purchaseDate) → "3 years 7 months", "5 months", "under a month"
+export function formatAge(since: Date, now: Date = new Date()): string {
+  const months =
+    (now.getFullYear() - since.getFullYear()) * 12 +
+    (now.getMonth() - since.getMonth()) -
+    (now.getDate() < since.getDate() ? 1 : 0);
+  if (months < 1) return "under a month";
+
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  return [
+    years > 0 && `${years} ${years === 1 ? "year" : "years"}`,
+    rest > 0 && `${rest} ${rest === 1 ? "month" : "months"}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 // getInitials("Aysel Huseynova") → "AH"
 export function getInitials(name: string): string {
   return name

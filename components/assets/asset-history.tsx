@@ -22,7 +22,7 @@ import {
   type FieldChange,
 } from "@/lib/assets/asset-detail";
 import type { AssetEventType } from "@/lib/generated/prisma/enums";
-import { formatDateTime } from "@/lib/utils";
+import { DateTime } from "@/components/shared/date-time";
 
 type EventStyle = {
   label: string;
@@ -100,12 +100,6 @@ function HistoryEntry({
 }) {
   const style = eventStyles[event.type];
   const target = style.targetPreposition && event.targetUser;
-  const meta = [
-    event.actor && `by ${event.actor.displayName}`,
-    formatDateTime(event.createdAt),
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   return (
     <li className="relative flex gap-3 pb-5 last:pb-0">
@@ -129,7 +123,10 @@ function HistoryEntry({
             </>
           )}
         </p>
-        <p className="text-xs text-muted-foreground">{meta}</p>
+        <p className="text-xs text-muted-foreground">
+          {event.actor && `by ${event.actor.displayName} · `}
+          <DateTime date={event.createdAt} />
+        </p>
         {event.changes.length > 0 && <ChangeList changes={event.changes} />}
       </div>
     </li>

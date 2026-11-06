@@ -196,6 +196,9 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Field ownership: technical fields from Intune, business fields manual
 - [ ] Show the Intune user as an assignment suggestion
 - [ ] Hourly cron job and a "Sync now" button
+- [ ] Sync one device from its detail page: clicking the Intune badge pulls that device from Graph; the cloud icon animates while it runs
+- [ ] Keep the last sync error per asset (e.g. `lastIntuneSyncError`) and show it in the Intune card
+- [ ] "Request device check-in" in the Intune card (Graph `syncDevice`, needs `DeviceManagementManagedDevices.PrivilegedOperations.All`)
 - [ ] Sync log page (`SyncRun`)
 - [ ] User sync from Entra ID (`User.Read.All` Application permission): name, email, department
 
