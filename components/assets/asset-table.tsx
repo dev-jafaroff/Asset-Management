@@ -1,6 +1,7 @@
 "use client";
 
 import { useTable } from "@tanstack/react-table";
+import Link from "next/link";
 import {
   assetTableFeatures,
   getAssetColumns,
@@ -14,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getAssetPath } from "@/lib/assets/asset-types";
 import type { AssetListItem } from "@/lib/assets/queries";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 
@@ -56,12 +58,16 @@ export function AssetTable({ assets, type }: AssetTableProps) {
 
                 return (
                   <TableCell key={cell.id}>
-                    {/* The first column identifies the asset, so it carries the type icon. */}
+                    {/* The first column identifies the asset: it carries the
+                        type icon and opens the asset's detail page. */}
                     {index === 0 ? (
-                      <span className="flex items-center gap-2">
+                      <Link
+                        href={getAssetPath(row.original.type, row.original.id)}
+                        className="flex w-fit items-center gap-2 font-medium text-primary hover:underline"
+                      >
                         <AssetTypeIcon type={row.original.type} />
                         {content}
-                      </span>
+                      </Link>
                     ) : (
                       content
                     )}
