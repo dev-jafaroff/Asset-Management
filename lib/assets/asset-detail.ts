@@ -15,6 +15,7 @@ const assetDetailSelect = {
   source: true,
   lastIntuneSync: true,
   missingInIntune: true,
+  intuneId: true,
   model: {
     select: {
       id: true,
@@ -55,12 +56,32 @@ export function getCheckedOutAt(asset: AssetDetail): Date | null {
   return asset.events[0]?.createdAt ?? null;
 }
 
-// Badge next to the title; manual records need no badge.
-export const assetSourceLabels: Record<AssetSource, string | null> = {
+// Where the record came from; manual records show no badge.
+const assetSourceLabels: Record<AssetSource, string | null> = {
   MANUAL: null,
   INTUNE: "Intune",
   SNIPEIT: "Snipe-IT",
 };
+
+const INTUNE_DEVICE_URL =
+  "https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsMenuBlade/~/overview/mdmDeviceId/";
+
+// The device's page in the Intune admin center, e.g. to check compliance.
+export function getIntuneDeviceUrl(asset: AssetDetail): string | null {
+  return asset.intuneId
+    ? `${INTUNE_DEVICE_URL}${encodeURIComponent(asset.intuneId)}`
+    : null;
+}
+
+// Badge next to the title; links to the source system when it has a page.
+export function getAssetSourceBadge(
+  asset: AssetDetail,
+): { source: AssetSource; label: string; href: string | null } | null {
+  const label = assetSourceLabels[asset.source];
+  if (!label) return null;
+  const href = asset.source === "INTUNE" ? getIntuneDeviceUrl(asset) : null;
+  return { source: asset.source, label, href };
+}
 
 // ─── Detail sections ─────────────────────────────────────────────────────────
 
@@ -73,6 +94,10 @@ export type DetailField = {
 
 export type DetailSection = {
   title: string;
+  // System the fields come from; its icon is shown next to the title.
+  source?: AssetSource;
+  // Opens the record in that system.
+  link?: { label: string; href: string };
   // Fields owned by another system (e.g. Intune) cannot be edited here.
   readOnly?: boolean;
   fields: DetailField[];
@@ -144,9 +169,12 @@ const typeSections: Record<
 // Shown for any asset synced from Intune, whatever its type.
 function buildIntuneSection(asset: AssetDetail): DetailSection | null {
   if (asset.source !== "INTUNE") return null;
+  const intuneUrl = getIntuneDeviceUrl(asset);
   return {
     title: "Intune",
+    source: "INTUNE",
     readOnly: true,
+    link: intuneUrl ? { label: "Open in Intune", href: intuneUrl } : undefined,
     fields: [
       { label: "Device name", value: asset.name },
       { label: "OS", value: asset.operatingSystem },

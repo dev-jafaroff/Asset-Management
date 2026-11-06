@@ -1,5 +1,6 @@
 import {
   Building2,
+  ExternalLink,
   LockKeyhole,
   MapPin,
   UserRound,
@@ -7,21 +8,30 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ComponentProps } from "react";
 import {
   AssetHistory,
   AssetHistoryFallback,
 } from "@/components/assets/asset-history";
-import { AssetTypeIcon } from "@/components/assets/asset-icons";
+import {
+  assetSourceIcons,
+  AssetTypeIcon,
+} from "@/components/assets/asset-icons";
 import { StatusBadge } from "@/components/assets/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { DetailList } from "@/components/shared/detail-list";
 import { IconTile } from "@/components/shared/icon-tile";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  assetSourceLabels,
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   buildDetailSections,
+  getAssetSourceBadge,
   getAssetDetail,
   getCheckedOutAt,
   type AssetDetail,
@@ -85,7 +95,6 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
   const asset = await loadAsset(params);
   const config = getAssetTypeConfig(asset.type);
   const title = getAssetDisplayName(asset);
-  const sourceLabel = assetSourceLabels[asset.source];
 
   // e.g. "Dell Latitude 5440 · WS-00007"; whatever is already the title is left out.
   const description = [formatModelName(asset.model), asset.name]
@@ -105,7 +114,7 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
         badges={
           <>
             <StatusBadge status={getAssetDisplayStatus(asset)} />
-            {sourceLabel && <Badge variant="outline">{sourceLabel}</Badge>}
+            <SourceBadge asset={asset} />
           </>
         }
       />
@@ -193,11 +202,49 @@ function AssignmentCard({ asset }: { asset: AssetDetail }) {
 
 // ─── Details ─────────────────────────────────────────────────────────────────
 
+// Links to another system (e.g. Intune) open in a new tab, so this page stays open.
+function ExternalAnchor(props: ComponentProps<"a">) {
+  return <a target="_blank" rel="noopener noreferrer" {...props} />;
+}
+
+// Where the record came from, e.g. "Intune" with a cloud icon. Opens the
+// record in that system when it has a page there.
+function SourceBadge({ asset }: { asset: AssetDetail }) {
+  const badge = getAssetSourceBadge(asset);
+  if (!badge) return null;
+  const Icon = assetSourceIcons[badge.source];
+  const content = (
+    <>
+      {Icon && <Icon aria-hidden />}
+      {badge.label}
+      {badge.href && <ExternalLink aria-hidden />}
+    </>
+  );
+
+  return badge.href ? (
+    <Badge
+      variant="outline"
+      render={
+        <ExternalAnchor href={badge.href} title={`Open in ${badge.label}`} />
+      }
+    >
+      {content}
+    </Badge>
+  ) : (
+    <Badge variant="outline">{content}</Badge>
+  );
+}
+
 function DetailCard({ section }: { section: DetailSection }) {
+  const SourceIcon = section.source && assetSourceIcons[section.source];
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
+          {SourceIcon && (
+            <SourceIcon aria-hidden className="size-4 text-primary" />
+          )}
           {section.title}
           {section.readOnly && (
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
@@ -206,6 +253,17 @@ function DetailCard({ section }: { section: DetailSection }) {
             </span>
           )}
         </CardTitle>
+        {section.link && (
+          <CardAction>
+            <ExternalAnchor
+              href={section.link.href}
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              {section.link.label}
+              <ExternalLink aria-hidden className="size-3" />
+            </ExternalAnchor>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
         <DetailList items={section.fields} />
