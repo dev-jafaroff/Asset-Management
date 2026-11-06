@@ -15,7 +15,7 @@ function isEmpty(value: ReactNode): boolean {
 // Label / value rows of a detail card (asset, user, ...).
 export function DetailList({ items }: { items: DetailListItem[] }) {
   return (
-    <dl className="grid grid-cols-[minmax(6rem,auto)_1fr] gap-x-6 gap-y-2.5">
+    <dl className="grid grid-cols-[minmax(6rem,8.5rem)_1fr] gap-x-6 gap-y-2.5">
       {items.map(({ label, value, mono }) => (
         <Fragment key={label}>
           <dt className="text-muted-foreground">{label}</dt>

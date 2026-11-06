@@ -6,6 +6,7 @@ import {
   ListPagination,
 } from "@/components/shared/list-pagination";
 import { ListSearch } from "@/components/shared/list-search";
+import { Skeleton } from "@/components/ui/skeleton";
 import { parseAssetFilters } from "@/lib/assets/asset-filters";
 import {
   ASSET_PAGE_SIZE,
@@ -116,6 +117,20 @@ export async function AssetList({
   );
 }
 
+const FALLBACK_ROWS = 8;
+
+// Outline of the toolbar, tabs and table while the list loads.
 export function AssetListFallback() {
-  return <p className="text-sm text-muted-foreground">Loading assets…</p>;
+  return (
+    <div aria-busy className="flex flex-col gap-4">
+      <Skeleton className="h-8 w-full max-w-sm" />
+      <Skeleton className="h-9 w-full max-w-2xl" />
+      <div className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+        {Array.from({ length: FALLBACK_ROWS }, (_, index) => (
+          <Skeleton key={index} className="h-5" />
+        ))}
+      </div>
+      <span className="sr-only">Loading assets…</span>
+    </div>
+  );
 }

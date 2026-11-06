@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Suspense, type ComponentProps } from "react";
+import { Suspense, type ComponentProps, type ReactNode } from "react";
 import {
   AssetHistory,
   AssetHistoryFallback,
@@ -29,6 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   buildDetailSections,
   getAssetSourceBadge,
@@ -79,16 +80,58 @@ export async function generateMetadata({
 }
 
 // The asset is read per request, so it streams in after the layout.
+// Lists use the full width for their columns; a detail page is capped, so
+// cards do not stretch into wide empty rows on large screens.
 export default function AssetPage({ params }: AssetPageProps) {
   return (
-    <Suspense fallback={<AssetPageFallback />}>
-      <AssetPageContent params={params} />
-    </Suspense>
+    <div className="max-w-screen-2xl">
+      <Suspense fallback={<AssetPageFallback />}>
+        <AssetPageContent params={params} />
+      </Suspense>
+    </div>
   );
 }
 
+// Main column with the cards; history on the right on wide screens.
+function AssetDetailGrid({
+  main,
+  aside,
+}: {
+  main: ReactNode;
+  aside: ReactNode;
+}) {
+  return (
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="flex flex-col gap-4">{main}</div>
+      {aside}
+    </div>
+  );
+}
+
+// Outline of the page while the asset loads, so nothing jumps when it arrives.
 function AssetPageFallback() {
-  return <p className="text-sm text-muted-foreground">Loading asset…</p>;
+  return (
+    <div aria-busy className="flex flex-col gap-6">
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-6 w-56" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <AssetDetailGrid
+        main={
+          <>
+            <Skeleton className="h-28 rounded-xl" />
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Skeleton className="h-72 rounded-xl" />
+              <Skeleton className="h-72 rounded-xl" />
+            </div>
+          </>
+        }
+        aside={<Skeleton className="h-96 rounded-xl" />}
+      />
+      <span className="sr-only">Loading asset…</span>
+    </div>
+  );
 }
 
 async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
@@ -119,22 +162,24 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
         }
       />
 
-      {/* Main column with the cards; history on the right on wide screens. */}
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="flex flex-col gap-4">
-          <AssignmentCard asset={asset} />
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            {buildDetailSections(asset).map((section) => (
-              <DetailCard key={section.title} section={section} />
-            ))}
-          </div>
-        </div>
-
-        {/* A long history must not hold back the cards above. */}
-        <Suspense fallback={<AssetHistoryFallback />}>
-          <AssetHistory assetId={asset.id} />
-        </Suspense>
-      </div>
+      <AssetDetailGrid
+        main={
+          <>
+            <AssignmentCard asset={asset} />
+            <div className="grid items-start gap-4 lg:grid-cols-2">
+              {buildDetailSections(asset).map((section) => (
+                <DetailCard key={section.title} section={section} />
+              ))}
+            </div>
+          </>
+        }
+        aside={
+          // A long history must not hold back the cards above.
+          <Suspense fallback={<AssetHistoryFallback />}>
+            <AssetHistory assetId={asset.id} />
+          </Suspense>
+        }
+      />
     </>
   );
 }
