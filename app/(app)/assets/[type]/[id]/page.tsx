@@ -7,6 +7,7 @@ import {
   AssetHistoryFallback,
 } from "@/components/assets/asset-history";
 import { AssetTypeIcon, SourceIcon } from "@/components/assets/asset-icons";
+import { AssetNotesCard } from "@/components/assets/asset-notes-card";
 import { StatusBadge } from "@/components/assets/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { CopyButton } from "@/components/shared/copy-button";
@@ -46,6 +47,8 @@ import {
   getAssetDisplayStatus,
   getAssetHolder,
 } from "@/lib/assets/format";
+import { getCurrentUser } from "@/lib/current-user";
+import { can } from "@/lib/permissions";
 import { getPositiveIntParam } from "@/lib/search-params";
 
 type AssetPageProps = PageProps<"/assets/[type]/[id]">;
@@ -129,6 +132,7 @@ function AssetPageFallback() {
 
 async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
   const asset = await loadAsset(params);
+  const user = await getCurrentUser();
   const config = getAssetTypeConfig(asset.type);
   const title = getAssetDisplayName(asset);
 
@@ -171,6 +175,11 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
                 <DetailCard key={section.title} section={section} />
               ))}
             </div>
+            <AssetNotesCard
+              assetId={asset.id}
+              notes={asset.notes}
+              canEdit={can(user.role, "asset:edit")}
+            />
           </>
         }
         aside={
