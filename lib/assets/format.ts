@@ -9,7 +9,7 @@ type AssetModelName = Pick<
   NonNullable<AssetListItem["model"]>,
   "name" | "manufacturer"
 >;
-type AssetAssignment = Pick<
+export type AssetAssignment = Pick<
   AssetListItem,
   "type" | "assignedTo" | "company" | "location"
 >;

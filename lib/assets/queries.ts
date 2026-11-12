@@ -4,6 +4,7 @@ import {
   buildAssetFilterWhere,
   type AssetFilterValues,
 } from "@/lib/assets/asset-filters";
+import { getAssetDisplayName } from "@/lib/assets/format";
 import { buildStatusTabs, type StatusTab } from "@/lib/assets/status-filters";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
@@ -143,4 +144,46 @@ export async function countAssetsByType(): Promise<Record<AssetType, number>> {
     counts[group.type] = group._count._all;
   }
   return counts;
+}
+
+// Identifiers that must be unique across all assets.
+export type UniqueAssetFields = {
+  assetTag?: string | null;
+  serial?: string | null;
+  imei?: string | null;
+};
+
+// Which of these identifiers another asset already uses, with that asset's
+// name, e.g. { serial: "PC-00007" }. `exceptId` skips the asset being edited.
+export async function findTakenIdentifiers(
+  values: UniqueAssetFields,
+  exceptId?: number,
+): Promise<Partial<Record<keyof UniqueAssetFields, string>>> {
+  const { assetTag, serial, imei } = values;
+  const matches: Prisma.AssetWhereInput[] = [];
+  if (assetTag) matches.push({ assetTag });
+  if (serial) matches.push({ serial });
+  if (imei) matches.push({ imei });
+  if (matches.length === 0) return {};
+
+  const owners = await prisma.asset.findMany({
+    where: { OR: matches, NOT: exceptId ? { id: exceptId } : undefined },
+    select: {
+      id: true,
+      assetTag: true,
+      name: true,
+      serial: true,
+      imei: true,
+      model: assetListSelect.model,
+    },
+  });
+
+  const taken: Partial<Record<keyof UniqueAssetFields, string>> = {};
+  for (const owner of owners) {
+    const ownerName = getAssetDisplayName(owner);
+    if (assetTag && owner.assetTag === assetTag) taken.assetTag = ownerName;
+    if (serial && owner.serial === serial) taken.serial = ownerName;
+    if (imei && owner.imei === imei) taken.imei = ownerName;
+  }
+  return taken;
 }

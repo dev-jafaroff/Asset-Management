@@ -1,0 +1,546 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { useId, useMemo, useState, useTransition, type ReactNode } from "react";
+import { Controller, useForm, type Control } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  assetFormFieldLabels,
+  getAssetFormFields,
+  getAssetFormSections,
+  getRequiredAssetFields,
+  isAssetListField,
+  type AssetFormErrors,
+  type AssetFormField,
+  type AssetListField,
+  type AssetTextField,
+} from "@/lib/assets/asset-form";
+import type {
+  AssetFormOptions,
+  FormOption,
+} from "@/lib/assets/asset-form-options";
+import type { AssetType } from "@/lib/generated/prisma/enums";
+import {
+  ASSET_NOTES_MAX_LENGTH,
+  getAssetFormSchema,
+  type AssetFormData,
+  type AssetFormValues,
+} from "@/lib/schemas/asset";
+import { cn } from "@/lib/utils";
+
+// ─── How each field is entered ───────────────────────────────────────────────
+
+type TextFieldSpec = {
+  type?: "text" | "date" | "tel";
+  // Keyboard on phones, e.g. digits only.
+  inputMode?: "numeric" | "decimal" | "tel";
+  placeholder?: string;
+  // Identifiers read better in a monospace font.
+  mono?: boolean;
+  // A text area across the whole width.
+  multiline?: boolean;
+  // Shown after the value, e.g. the currency.
+  suffix?: string;
+  description?: string;
+};
+
+const textFieldSpecs: Record<AssetTextField, TextFieldSpec> = {
+  assetTag: {
+    mono: true,
+    description: "The next free tag. Change it to use a label already printed.",
+  },
+  name: {},
+  serial: { mono: true },
+  imei: { mono: true, inputMode: "numeric", placeholder: "15 digits" },
+  phoneNumber: {
+    type: "tel",
+    inputMode: "tel",
+    placeholder: "+994 50 123 45 67",
+  },
+  operatingSystem: {},
+  vmHost: { placeholder: "e.g. HV-01" },
+  vCpu: { inputMode: "numeric" },
+  ramGb: { inputMode: "numeric" },
+  purchaseDate: { type: "date" },
+  purchaseCost: { inputMode: "decimal", placeholder: "0.00", suffix: "₼" },
+  notes: {
+    multiline: true,
+    placeholder: "e.g. Screen replaced in March; charger kept in IT",
+  },
+};
+
+type OptionList = Exclude<keyof AssetFormOptions, "defaultStatusId">;
+
+type ListFieldSpec = {
+  options: OptionList;
+  // Long lists (models, people) are searched by typing.
+  searchable?: boolean;
+  placeholder: string;
+};
+
+const listFieldSpecs: Record<AssetListField, ListFieldSpec> = {
+  modelId: {
+    options: "models",
+    searchable: true,
+    placeholder: "Search models",
+  },
+  statusId: { options: "statuses", placeholder: "Choose a status" },
+  companyId: { options: "companies", placeholder: "No company" },
+  locationId: { options: "locations", placeholder: "No location" },
+  assignedToId: {
+    options: "users",
+    searchable: true,
+    placeholder: "Search by name or email",
+  },
+};
+
+// ─── Form ────────────────────────────────────────────────────────────────────
+
+type AssetFormProps = {
+  type: AssetType;
+  options: AssetFormOptions;
+  defaultValues: AssetFormValues;
+  // Saves the values; returns the errors, or opens the asset when it is saved.
+  action: (values: AssetFormValues) => Promise<AssetFormErrors>;
+  submitLabel: string;
+  cancelHref: string;
+};
+
+// One form for every asset type: its cards and fields follow the type
+// (lib/assets/asset-form.ts). Mistakes show while typing; the server checks
+// everything again and its errors appear under the same fields.
+export function AssetForm({
+  type,
+  options,
+  defaultValues,
+  action,
+  submitLabel,
+  cancelHref,
+}: AssetFormProps) {
+  const schema = useMemo(() => getAssetFormSchema(type), [type]);
+  const form = useForm<AssetFormValues, unknown, AssetFormData>({
+    resolver: zodResolver(schema),
+    defaultValues,
+    // Check a field once it is left, then again on every change.
+    mode: "onTouched",
+  });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, startSaving] = useTransition();
+  const required = new Set(getRequiredAssetFields(type));
+
+  function save() {
+    setFormError(null);
+    startSaving(async () => {
+      const errors = await action(form.getValues());
+      setFormError(errors.message ?? null);
+      // Server errors go under their fields; the first one gets the focus.
+      const failed = getAssetFormFields(type).filter(
+        (field) => errors.fields?.[field],
+      );
+      failed.forEach((field, index) => {
+        form.setError(
+          field,
+          { type: "server", message: errors.fields?.[field] },
+          { shouldFocus: index === 0 },
+        );
+      });
+    });
+  }
+
+  return (
+    <form
+      onSubmit={form.handleSubmit(save)}
+      noValidate
+      className="flex flex-col gap-4"
+    >
+      {getAssetFormSections(type).map((section) => (
+        <Card key={section.title}>
+          <CardHeader>
+            <CardTitle>{section.title}</CardTitle>
+            {section.description && (
+              <CardDescription>{section.description}</CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            {section.fields.map((field) => (
+              <AssetFormFieldControl
+                key={field}
+                field={field}
+                control={form.control}
+                options={options}
+                required={required.has(field)}
+                // A lone field named like its card (Notes) keeps its label for screen readers only.
+                hideLabel={
+                  section.fields.length === 1 &&
+                  assetFormFieldLabels[field] === section.title
+                }
+              />
+            ))}
+          </CardContent>
+        </Card>
+      ))}
+
+      {formError && (
+        <p role="alert" className="text-sm text-destructive">
+          {formError}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? "Saving…" : submitLabel}
+        </Button>
+        <Button
+          variant="ghost"
+          nativeButton={false}
+          render={<Link href={cancelHref} />}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// ─── Fields ──────────────────────────────────────────────────────────────────
+
+type FieldControlProps = {
+  field: AssetFormField;
+  control: Control<AssetFormValues, unknown, AssetFormData>;
+  options: AssetFormOptions;
+  required: boolean;
+  hideLabel: boolean;
+};
+
+function AssetFormFieldControl({ field, ...props }: FieldControlProps) {
+  return isAssetListField(field) ? (
+    <ListField name={field} {...props} />
+  ) : (
+    <TextField name={field} {...props} />
+  );
+}
+
+type FieldShellProps = {
+  id: string;
+  label: string;
+  required: boolean;
+  description?: string;
+  error?: string;
+  wide?: boolean;
+  hideLabel: boolean;
+  children: ReactNode;
+};
+
+// Label, control, then the error (or the hint while there is none).
+function FieldShell({
+  id,
+  label,
+  required,
+  description,
+  error,
+  wide,
+  hideLabel,
+  children,
+}: FieldShellProps) {
+  return (
+    <Field
+      data-invalid={error ? true : undefined}
+      className={cn(wide && "sm:col-span-2")}
+    >
+      <FieldLabel htmlFor={id} className={cn(hideLabel && "sr-only")}>
+        {label}
+        {required && (
+          <span aria-hidden className="-ml-1.5 text-destructive">
+            *
+          </span>
+        )}
+      </FieldLabel>
+      {children}
+      {error ? (
+        <FieldError id={`${id}-error`}>{error}</FieldError>
+      ) : (
+        description && <FieldDescription>{description}</FieldDescription>
+      )}
+    </Field>
+  );
+}
+
+type TextFieldProps = Omit<FieldControlProps, "field" | "options"> & {
+  name: AssetTextField;
+};
+
+function TextField({ name, control, required, hideLabel }: TextFieldProps) {
+  const id = useId();
+  const spec = textFieldSpecs[name];
+
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => {
+        const inputProps = {
+          ...field,
+          id,
+          required,
+          placeholder: spec.placeholder,
+          "aria-invalid": fieldState.invalid || undefined,
+          "aria-describedby": fieldState.error ? `${id}-error` : undefined,
+        };
+        return (
+          <FieldShell
+            id={id}
+            label={assetFormFieldLabels[name]}
+            required={required}
+            description={spec.description}
+            error={fieldState.error?.message}
+            wide={spec.multiline}
+            hideLabel={hideLabel}
+          >
+            {spec.multiline ? (
+              <Textarea
+                {...inputProps}
+                maxLength={ASSET_NOTES_MAX_LENGTH}
+                className="max-h-80"
+              />
+            ) : spec.suffix ? (
+              <InputGroup>
+                <InputGroupInput
+                  {...inputProps}
+                  inputMode={spec.inputMode}
+                  className={cn(spec.mono && "font-mono")}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupText>{spec.suffix}</InputGroupText>
+                </InputGroupAddon>
+              </InputGroup>
+            ) : (
+              <Input
+                {...inputProps}
+                type={spec.type ?? "text"}
+                inputMode={spec.inputMode}
+                className={cn(spec.mono && "font-mono")}
+              />
+            )}
+          </FieldShell>
+        );
+      }}
+    />
+  );
+}
+
+type ListFieldProps = Omit<FieldControlProps, "field"> & {
+  name: AssetListField;
+};
+
+function ListField({
+  name,
+  control,
+  options,
+  required,
+  hideLabel,
+}: ListFieldProps) {
+  const id = useId();
+  const spec = listFieldSpecs[name];
+  const choices = options[spec.options];
+  const Control = spec.searchable ? SearchSelect : PlainSelect;
+
+  return (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => (
+        <FieldShell
+          id={id}
+          label={assetFormFieldLabels[name]}
+          required={required}
+          hideLabel={hideLabel}
+          error={fieldState.error?.message}
+        >
+          <Control
+            id={id}
+            value={field.value}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            inputRef={field.ref}
+            choices={choices}
+            placeholder={spec.placeholder}
+            clearable={!required}
+            invalid={fieldState.invalid}
+          />
+        </FieldShell>
+      )}
+    />
+  );
+}
+
+type ChoiceControlProps = {
+  id: string;
+  value: number | null;
+  onChange: (value: number | null) => void;
+  onBlur: () => void;
+  // Lets the form focus the control when the server rejects its value.
+  inputRef: (element: HTMLElement | null) => void;
+  choices: FormOption[];
+  placeholder: string;
+  // Optional fields can be emptied again.
+  clearable: boolean;
+  invalid: boolean;
+};
+
+// A short list (statuses, companies, locations).
+function PlainSelect({
+  id,
+  value,
+  onChange,
+  onBlur,
+  inputRef,
+  choices,
+  placeholder,
+  clearable,
+  invalid,
+}: ChoiceControlProps) {
+  // null is the "empty" entry, e.g. "No company".
+  const items = [
+    ...(clearable ? [{ value: null, label: placeholder }] : []),
+    ...choices,
+  ];
+
+  return (
+    <Select items={items} value={value} onValueChange={onChange}>
+      <SelectTrigger
+        id={id}
+        ref={inputRef}
+        onBlur={onBlur}
+        aria-invalid={invalid || undefined}
+        className="w-full"
+      >
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value ?? "none"} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// Every typed word must appear in the label or the description, so
+// "aysel it" finds Aysel Huseynova from the IT department.
+function matchesChoice(choice: FormOption, query: string): boolean {
+  const text = `${choice.label} ${choice.description ?? ""}`.toLowerCase();
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .every((word) => text.includes(word));
+}
+
+// A long list (models, people), searched by typing.
+function SearchSelect({
+  id,
+  value,
+  onChange,
+  onBlur,
+  inputRef,
+  choices,
+  placeholder,
+  clearable,
+  invalid,
+}: ChoiceControlProps) {
+  const selected = choices.find((choice) => choice.value === value) ?? null;
+
+  return (
+    <Combobox
+      items={choices}
+      value={selected}
+      onValueChange={(choice) => onChange(choice?.value ?? null)}
+      itemToStringLabel={(choice) => choice.label}
+      isItemEqualToValue={(choice, other) => choice.value === other.value}
+      filter={matchesChoice}
+      inputRef={inputRef}
+    >
+      <ComboboxInput
+        id={id}
+        placeholder={placeholder}
+        onBlur={onBlur}
+        showClear={clearable && selected !== null}
+        aria-invalid={invalid || undefined}
+        className="w-full"
+      />
+      <ComboboxContent>
+        <ComboboxEmpty>No matches.</ComboboxEmpty>
+        <ComboboxList>
+          {(choice: FormOption) => (
+            <ComboboxItem key={choice.value} value={choice}>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate">{choice.label}</span>
+                {choice.description && (
+                  <span className="truncate text-xs text-muted-foreground">
+                    {choice.description}
+                  </span>
+                )}
+              </span>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+// ─── Loading ─────────────────────────────────────────────────────────────────
+
+// Outline of the form while its lists load.
+export function AssetFormFallback() {
+  return (
+    <div aria-busy className="flex flex-col gap-4">
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-6 w-48" />
+      </div>
+      <Skeleton className="h-72 rounded-xl" />
+      <Skeleton className="h-32 rounded-xl" />
+      <Skeleton className="h-32 rounded-xl" />
+      <span className="sr-only">Loading form…</span>
+    </div>
+  );
+}
