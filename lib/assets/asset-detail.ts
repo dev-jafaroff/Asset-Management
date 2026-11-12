@@ -173,7 +173,6 @@ function buildDetailsSection(asset: AssetDetail): DetailSection {
         label: "Age",
         value: asset.purchaseDate && formatAge(asset.purchaseDate),
       },
-      { label: "Notes", value: asset.notes },
     ],
   };
 }
