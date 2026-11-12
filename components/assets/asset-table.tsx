@@ -9,6 +9,7 @@ import {
   getAssetColumns,
 } from "@/components/assets/asset-columns";
 import { AssetTypeIcon } from "@/components/assets/asset-icons";
+import { useAssetColumnVisibility } from "@/components/assets/column-menu";
 import {
   Table,
   TableBody,
@@ -57,11 +58,14 @@ function useRowNavigation() {
 
 export function AssetTable({ assets, type }: AssetTableProps) {
   const getRowLinkProps = useRowNavigation();
+  const { visibility } = useAssetColumnVisibility(type);
   const table = useTable({
     features: assetTableFeatures,
     columns: getAssetColumns(type),
     data: assets,
     getRowId: (asset) => String(asset.id),
+    // Owned by the column menu; the table only reads it.
+    state: { columnVisibility: visibility },
   });
 
   return (
@@ -91,7 +95,7 @@ export function AssetTable({ assets, type }: AssetTableProps) {
                 className="cursor-pointer"
                 {...getRowLinkProps(href)}
               >
-                {row.getAllCells().map((cell, index) => {
+                {row.getVisibleCells().map((cell, index) => {
                   const content = <table.FlexRender cell={cell} />;
 
                   return (

@@ -1,5 +1,6 @@
 import { AssetFilters } from "@/components/assets/asset-filters";
 import { AssetTable } from "@/components/assets/asset-table";
+import { ColumnMenu } from "@/components/assets/column-menu";
 import { StatusTabs } from "@/components/assets/status-tabs";
 import {
   getPageCount,
@@ -84,6 +85,7 @@ export async function AssetList({
 
       <StatusTabs
         activeSlug={activeTab.slug}
+        actions={<ColumnMenu type={type} />}
         tabs={tabs.map((tab) => ({
           slug: tab.slug,
           label: tab.label,
