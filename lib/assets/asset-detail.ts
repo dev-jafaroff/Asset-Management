@@ -9,21 +9,12 @@ import { daysBetween, formatAge, formatDate } from "@/lib/utils";
 // Everything the list shows, plus the fields only the detail page needs.
 const assetDetailSelect = {
   ...assetListSelect,
-  notes: true,
   purchaseCost: true,
   purchaseDate: true,
   source: true,
   lastIntuneSync: true,
   missingInIntune: true,
   intuneId: true,
-  model: {
-    select: {
-      id: true,
-      name: true,
-      manufacturer: true,
-      category: { select: { name: true } },
-    },
-  },
   assignedTo: {
     select: {
       id: true,
@@ -224,6 +215,7 @@ const typeSections: Record<
   }),
   ACCESS_POINT: () => null,
   CAMERA: () => null,
+  OTHER: () => null,
 };
 
 // Shown for any asset synced from Intune, whatever its type.

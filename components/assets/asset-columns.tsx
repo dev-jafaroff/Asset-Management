@@ -1,5 +1,7 @@
 import {
   type ColumnDef,
+  type ColumnVisibilityState,
+  columnVisibilityFeature,
   createColumnHelper,
   tableFeatures,
 } from "@tanstack/react-table";
@@ -14,8 +16,8 @@ import {
 import type { AssetListItem } from "@/lib/assets/queries";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 
-// Core features only for now; sorting, selection and visibility are added per step.
-export const assetTableFeatures = tableFeatures({});
+// Features are added per step (sorting and selection come later).
+export const assetTableFeatures = tableFeatures({ columnVisibilityFeature });
 
 type AssetColumn = ColumnDef<typeof assetTableFeatures, AssetListItem>;
 
@@ -58,6 +60,16 @@ const model = column.accessor((asset) => formatModelName(asset.model), {
   cell: (info) => orDash(info.getValue()),
 });
 
+// What the device is, e.g. "Card reader" on the mixed "Other" list.
+const category = column.accessor(
+  (asset) => asset.model?.category.name ?? null,
+  {
+    id: "category",
+    header: "Category",
+    cell: (info) => orDash(info.getValue()),
+  },
+);
+
 const serial = column.accessor("serial", {
   header: "Serial",
   cell: (info) => (
@@ -89,6 +101,24 @@ const location = column.accessor((asset) => asset.location?.name ?? null, {
   cell: (info) => (
     <span className="text-muted-foreground">{orDash(info.getValue())}</span>
   ),
+});
+
+// One line, cut off with "…"; the full text is shown on hover and on the detail page.
+const notes = column.accessor("notes", {
+  header: "Notes",
+  cell: (info) => {
+    const value = info.getValue();
+    return value ? (
+      <span
+        title={value}
+        className="block max-w-64 truncate text-muted-foreground"
+      >
+        {value}
+      </span>
+    ) : (
+      "—"
+    );
+  },
 });
 
 // ─── Type-specific columns ───────────────────────────────────────────────────
@@ -146,74 +176,172 @@ const assignedCompany = column.accessor((asset) => getAssetHolder(asset), {
 
 // ─── Column sets ─────────────────────────────────────────────────────────────
 
-const columnsByType: Record<AssetType, AssetColumn[]> = {
-  PC: column.columns([
-    assetTag,
-    name,
-    model,
-    status,
-    assignedTo,
-    company,
-    location,
-    operatingSystem,
-  ]),
-  MONITOR: column.columns([
-    assetTag,
-    model,
-    serial,
-    status,
-    assignedTo,
-    company,
-    location,
-  ]),
-  PRINTER: column.columns([
-    assetTag,
-    model,
-    serial,
-    status,
-    assignedTo,
-    company,
-    location,
-  ]),
-  PHONE: column.columns([
-    model,
-    imei,
-    phoneNumber,
-    status,
-    assignedTo,
-    company,
-    operatingSystem,
-  ]),
-  VM: column.columns([
-    name,
-    operatingSystem,
-    vmHost,
-    vCpu,
-    ramGb,
-    status,
-    assignedCompany,
-  ]),
-  // Installed at a location, so there is no "Assigned to" column.
-  ACCESS_POINT: column.columns([
-    assetTag,
-    model,
-    serial,
-    status,
-    location,
-    company,
-  ]),
-  CAMERA: column.columns([assetTag, model, serial, status, location, company]),
+type AssetColumnSet = {
+  // In display order. The first column identifies the asset and is always shown.
+  columns: AssetColumn[];
+  // Offered in the column menu, but off until the user turns them on.
+  hiddenByDefault?: AssetColumn[];
 };
 
-const allAssetColumns: AssetColumn[] = column.columns([
-  displayName,
-  assetType,
-  model,
-  status,
-  assignedTo,
-  company,
-]);
+const columnSetsByType: Record<AssetType, AssetColumnSet> = {
+  PC: {
+    columns: column.columns([
+      assetTag,
+      name,
+      model,
+      category,
+      serial,
+      status,
+      assignedTo,
+      company,
+      location,
+      operatingSystem,
+      notes,
+    ]),
+    // The device name matches the tag, so it is hidden unless asked for.
+    hiddenByDefault: column.columns([name, category, serial]),
+  },
+  MONITOR: {
+    columns: column.columns([
+      assetTag,
+      model,
+      category,
+      serial,
+      status,
+      assignedTo,
+      company,
+      location,
+      notes,
+    ]),
+    hiddenByDefault: column.columns([category]),
+  },
+  PRINTER: {
+    columns: column.columns([
+      assetTag,
+      model,
+      category,
+      serial,
+      status,
+      assignedTo,
+      company,
+      location,
+      notes,
+    ]),
+    hiddenByDefault: column.columns([category]),
+  },
+  PHONE: {
+    columns: column.columns([
+      model,
+      imei,
+      phoneNumber,
+      serial,
+      status,
+      assignedTo,
+      company,
+      operatingSystem,
+      notes,
+    ]),
+    hiddenByDefault: column.columns([serial]),
+  },
+  VM: {
+    columns: column.columns([
+      name,
+      operatingSystem,
+      vmHost,
+      vCpu,
+      ramGb,
+      status,
+      assignedCompany,
+      notes,
+    ]),
+  },
+  // Installed at a location, so there is no "Assigned to" column.
+  ACCESS_POINT: {
+    columns: column.columns([
+      assetTag,
+      model,
+      serial,
+      status,
+      location,
+      company,
+      notes,
+    ]),
+  },
+  CAMERA: {
+    columns: column.columns([
+      assetTag,
+      model,
+      serial,
+      status,
+      location,
+      company,
+      notes,
+    ]),
+  },
+  // Mixed devices: the category says what each one is.
+  OTHER: {
+    columns: column.columns([
+      assetTag,
+      category,
+      model,
+      serial,
+      status,
+      location,
+      company,
+      notes,
+    ]),
+  },
+};
+
+// "All assets": the columns every type shares.
+const allAssetsColumnSet: AssetColumnSet = {
+  columns: column.columns([
+    displayName,
+    assetType,
+    model,
+    serial,
+    status,
+    assignedTo,
+    company,
+    location,
+    notes,
+  ]),
+  hiddenByDefault: column.columns([serial, location]),
+};
+
+function getColumnSet(type?: AssetType): AssetColumnSet {
+  return type ? columnSetsByType[type] : allAssetsColumnSet;
+}
+
+// Columns made from a field name ("serial") take it as their id.
+function getColumnId(def: AssetColumn): string {
+  if (def.id) return def.id;
+  if ("accessorKey" in def && typeof def.accessorKey === "string") {
+    return def.accessorKey;
+  }
+  throw new Error("Every asset column needs an id or an accessor key.");
+}
 
 export function getAssetColumns(type?: AssetType): AssetColumn[] {
-  return type ? columnsByType[type] : allAssetColumns;
+  return getColumnSet(type).columns;
+}
+
+// e.g. { name: false, serial: false } for PCs; columns not listed are shown.
+export function getDefaultColumnVisibility(
+  type?: AssetType,
+): ColumnVisibilityState {
+  const hidden = getColumnSet(type).hiddenByDefault ?? [];
+  return Object.fromEntries(hidden.map((def) => [getColumnId(def), false]));
+}
+
+export type ColumnOption = { id: string; label: string };
+
+// Columns the user can show or hide; the first one always stays.
+export function getColumnOptions(type?: AssetType): ColumnOption[] {
+  return getColumnSet(type)
+    .columns.slice(1)
+    .map((def) => {
+      const id = getColumnId(def);
+      return { id, label: typeof def.header === "string" ? def.header : id };
+    });
 }

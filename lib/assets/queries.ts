@@ -21,9 +21,17 @@ export const assetListSelect = {
   vmHost: true,
   vCpu: true,
   ramGb: true,
+  notes: true,
   updatedAt: true,
   status: { select: { id: true, name: true, type: true, color: true } },
-  model: { select: { id: true, name: true, manufacturer: true } },
+  model: {
+    select: {
+      id: true,
+      name: true,
+      manufacturer: true,
+      category: { select: { name: true } },
+    },
+  },
   company: { select: { id: true, name: true } },
   location: { select: { id: true, name: true } },
   assignedTo: { select: { id: true, displayName: true, email: true } },

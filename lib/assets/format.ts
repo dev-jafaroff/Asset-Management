@@ -5,7 +5,10 @@ import {
 import type { AssetListItem } from "@/lib/assets/queries";
 
 type AssetIdentity = Pick<AssetListItem, "id" | "assetTag" | "name" | "model">;
-type AssetModelName = NonNullable<AssetListItem["model"]>;
+type AssetModelName = Pick<
+  NonNullable<AssetListItem["model"]>,
+  "name" | "manufacturer"
+>;
 type AssetAssignment = Pick<
   AssetListItem,
   "type" | "assignedTo" | "company" | "location"

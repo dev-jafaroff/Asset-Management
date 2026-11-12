@@ -72,6 +72,16 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     tagPrefix: "CAM-",
     assignTo: "location",
   },
+  {
+    type: "OTHER",
+    slug: "other",
+    label: "Other",
+    singularLabel: "Other device",
+    tagPrefix: "OT-",
+    // Devices with only one or two of a kind, e.g. the server room card reader.
+    // The model's category says what each one is; a kind that grows gets its own type.
+    assignTo: "location",
+  },
 ];
 
 export const ASSETS_PATH = "/assets";

@@ -17,6 +17,8 @@ enum AssetType {
   VM
   ACCESS_POINT
   CAMERA
+  // One-off devices (e.g. a card reader); the model's category says what it is.
+  OTHER
 }
 
 enum AssetSource {
