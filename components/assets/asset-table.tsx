@@ -2,8 +2,7 @@
 
 import { useTable, type RowSelectionState } from "@tanstack/react-table";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { useState } from "react";
 import {
   assetTableFeatures,
   getAssetColumns,
@@ -20,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useRowNavigation } from "@/hooks/use-row-navigation";
 import type { BulkActionOptions } from "@/lib/assets/asset-form-options";
 import { getAssetPath } from "@/lib/assets/asset-types";
 import { getAssetDisplayName } from "@/lib/assets/format";
@@ -34,35 +34,6 @@ type AssetTableProps = {
   // and without it rows cannot be selected.
   bulkOptions?: BulkActionOptions;
 };
-
-// The whole row opens the asset, like its link: Ctrl/⌘ + click or a middle
-// click opens a new tab. The link in the first cell stays the way in for the
-// keyboard and screen readers. Clicks on other controls (e.g. the selection
-// checkbox), or while text is selected (e.g. copying a serial), are left alone.
-function useRowNavigation() {
-  const router = useRouter();
-
-  function shouldIgnore(event: MouseEvent<HTMLElement>): boolean {
-    const target = event.target as Element;
-    return (
-      target.closest(
-        "a, button, input, select, textarea, [role='checkbox']",
-      ) !== null || Boolean(window.getSelection()?.toString())
-    );
-  }
-
-  return (href: string) => ({
-    onClick: (event: MouseEvent<HTMLTableRowElement>) => {
-      if (shouldIgnore(event)) return;
-      if (event.ctrlKey || event.metaKey) window.open(href, "_blank");
-      else router.push(href);
-    },
-    onAuxClick: (event: MouseEvent<HTMLTableRowElement>) => {
-      if (event.button !== 1 || shouldIgnore(event)) return;
-      window.open(href, "_blank");
-    },
-  });
-}
 
 // The selected rows, by asset id. A selection belongs to the rows on screen:
 // another page, tab or filter, or a reload after an action, starts empty.

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { Suspense, type ComponentProps, type ReactNode } from "react";
 import {
   AssetHistory,
-  AssetHistoryFallback,
+  HistoryFallback,
 } from "@/components/assets/asset-history";
 import {
   submitCheckin,
@@ -204,7 +204,7 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
         }
         aside={
           // A long history must not hold back the cards above.
-          <Suspense fallback={<AssetHistoryFallback />}>
+          <Suspense fallback={<HistoryFallback />}>
             <AssetHistory assetId={asset.id} />
           </Suspense>
         }

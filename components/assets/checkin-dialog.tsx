@@ -11,6 +11,8 @@ import type { Choice } from "@/components/shared/choice-select";
 import type { CheckinValues } from "@/lib/schemas/asset";
 
 type CheckinDialogProps = {
+  // e.g. "Check in all" on a person's page; "Check in" by default.
+  triggerLabel?: string;
   // e.g. "Check in PC-00041" or "Check in 3 assets".
   title: string;
   // e.g. "Take it back from Aysel Huseynova."
@@ -23,6 +25,7 @@ type CheckinDialogProps = {
 
 // Takes one asset, or a selection, back and sets the status it returns to.
 export function CheckinDialog({
+  triggerLabel = "Check in",
   title,
   description,
   statuses,
@@ -33,7 +36,7 @@ export function CheckinDialog({
 
   return (
     <AssignmentDialog
-      triggerLabel="Check in"
+      triggerLabel={triggerLabel}
       triggerIcon={LogIn}
       title={title}
       description={description}

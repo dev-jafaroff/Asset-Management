@@ -105,12 +105,18 @@ export function checkOutAsset({
 }
 
 // Takes the asset back and gives it the chosen status, e.g. "In storage".
+// `fromUserId` is the person it is taken from, when that is what was asked
+// (e.g. "check in all" on their page); it is refused if someone else has it.
 export function checkInAsset({
   assetId,
   actorId,
   note,
   statusId,
-}: AssetChange & { statusId: number }): Promise<AssetChangeResult> {
+  fromUserId,
+}: AssetChange & {
+  statusId: number;
+  fromUserId?: number;
+}): Promise<AssetChangeResult> {
   return runAssetChange(async (tx) => {
     const asset = await tx.asset.findUnique({
       where: { id: assetId },
@@ -118,6 +124,9 @@ export function checkInAsset({
     });
     if (!asset) return "This asset no longer exists.";
     if (!isAssetAssigned(asset)) return "It is not checked out.";
+    if (fromUserId !== undefined && asset.assignedTo?.id !== fromUserId) {
+      return "It is no longer checked out to them.";
+    }
 
     const { assignTo } = getAssetTypeConfig(asset.type);
     const checkedIn = await tx.asset.update({
