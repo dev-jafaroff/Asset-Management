@@ -59,7 +59,16 @@ export function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / DAY);
 }
 
-// formatAge(purchaseDate) → "3 years 7 months", "5 months", "under a month"
+// formatCount(3, "asset") → "3 assets", formatCount(1, "asset") → "1 asset"
+export function formatCount(
+  count: number,
+  singular: string,
+  plural = `${singular}s`,
+): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+// formatAge(purchaseDate) →"3 years 7 months", "5 months", "under a month"
 export function formatAge(since: Date, now: Date = new Date()): string {
   const months =
     (now.getFullYear() - since.getFullYear()) * 12 +
@@ -70,8 +79,8 @@ export function formatAge(since: Date, now: Date = new Date()): string {
   const years = Math.floor(months / 12);
   const rest = months % 12;
   return [
-    years > 0 && `${years} ${years === 1 ? "year" : "years"}`,
-    rest > 0 && `${rest} ${rest === 1 ? "month" : "months"}`,
+    years > 0 && formatCount(years, "year"),
+    rest > 0 && formatCount(rest, "month"),
   ]
     .filter(Boolean)
     .join(" ");

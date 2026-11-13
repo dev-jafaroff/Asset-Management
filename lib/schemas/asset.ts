@@ -4,7 +4,7 @@ import {
   getRequiredAssetFields,
   type AssetFormField,
 } from "@/lib/assets/asset-form";
-import { getAssetTypeConfig } from "@/lib/assets/asset-types";
+import { assignTargets, getAssetTypeConfig } from "@/lib/assets/asset-types";
 import { AssetType } from "@/lib/generated/prisma/enums";
 
 export const ASSET_NOTES_MAX_LENGTH = 2000;
@@ -206,5 +206,31 @@ export const checkinSchema = z.object({
   note: eventNoteSchema,
 });
 
+export const statusChangeSchema = z.object({
+  statusId: requiredChoice("Choose a status."),
+  note: eventNoteSchema,
+});
+
 export type CheckoutValues = z.input<typeof checkoutSchema>;
 export type CheckinValues = z.input<typeof checkinSchema>;
+export type StatusChangeValues = z.input<typeof statusChangeSchema>;
+
+// ─── Bulk actions ────────────────────────────────────────────────────────────
+
+// More than a list page holds, so a full page always fits.
+export const BULK_ASSET_LIMIT = 100;
+
+// The selected assets of a list; repeated ids count once.
+export const assetIdsSchema = z
+  .array(assetIdSchema)
+  .min(1, "Select at least one asset.")
+  .max(BULK_ASSET_LIMIT, `Select at most ${BULK_ASSET_LIMIT} assets.`)
+  .transform((ids) => [...new Set(ids)]);
+
+// A bulk checkout also says what kind of holder was chosen, so a person's id
+// is never stored as the location of an access point.
+export const bulkCheckoutSchema = checkoutSchema.extend({
+  assignTo: z.enum(assignTargets),
+});
+
+export type BulkCheckoutValues = z.input<typeof bulkCheckoutSchema>;

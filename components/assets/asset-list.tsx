@@ -10,6 +10,11 @@ import { ListSearch } from "@/components/shared/list-search";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseAssetFilters } from "@/lib/assets/asset-filters";
 import {
+  getBulkActionOptions,
+  type BulkActionOptions,
+} from "@/lib/assets/asset-form-options";
+import { assignTargets, getAssetTypeConfig } from "@/lib/assets/asset-types";
+import {
   ASSET_PAGE_SIZE,
   listAssets,
   listStatusTabsWithCounts,
@@ -19,7 +24,9 @@ import {
   STATUS_PARAM,
   toStatusParam,
 } from "@/lib/assets/status-filters";
+import { getCurrentUser } from "@/lib/current-user";
 import type { AssetType } from "@/lib/generated/prisma/enums";
+import { can } from "@/lib/permissions";
 import {
   buildHref,
   getPageParam,
@@ -44,6 +51,18 @@ function getEmptyMessage(search: string | undefined, hasFilters: boolean) {
   return "No assets with this status.";
 }
 
+// The lists of the bulk action dialogs, for people who may use them. A type
+// list needs the holders of its type only; "All assets" those of every type.
+async function loadBulkOptions(
+  type: AssetType | undefined,
+): Promise<BulkActionOptions | undefined> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "asset:edit")) return undefined;
+  return getBulkActionOptions(
+    type ? [getAssetTypeConfig(type).assignTo] : assignTargets,
+  );
+}
+
 // Reading searchParams makes this render per request, so the list is always fresh.
 export async function AssetList({
   type,
@@ -62,10 +81,10 @@ export async function AssetList({
   // A page past the end (e.g. after a search narrowed the list) shows the last page.
   const page = Math.min(getPageParam(params), pageCount);
 
-  const assets = await listAssets(
-    { type, search, filters, status: activeTab.where },
-    page,
-  );
+  const [assets, bulkOptions] = await Promise.all([
+    listAssets({ type, search, filters, status: activeTab.where }, page),
+    loadBulkOptions(type),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -104,7 +123,7 @@ export async function AssetList({
         </p>
       ) : (
         <>
-          <AssetTable assets={assets} type={type} />
+          <AssetTable assets={assets} type={type} bulkOptions={bulkOptions} />
           <ListPagination
             page={page}
             pageCount={pageCount}

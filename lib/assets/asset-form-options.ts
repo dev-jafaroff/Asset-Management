@@ -136,6 +136,30 @@ export type CheckinOptions = {
   defaultStatusId: number | null;
 };
 
+// ─── Bulk actions ────────────────────────────────────────────────────────────
+
+export type BulkActionOptions = CheckinOptions & {
+  // Per kind of holder the list's types go to; "All assets" has all three.
+  holders: Partial<Record<AssignTarget, FormOption[]>>;
+};
+
+// The lists the dialogs above an asset list offer. Statuses serve both the
+// checkin and the status change.
+export async function getBulkActionOptions(
+  assignTargets: readonly AssignTarget[],
+): Promise<BulkActionOptions> {
+  const [checkin, holderLists] = await Promise.all([
+    getCheckinOptions(),
+    Promise.all(assignTargets.map((target) => getHolderOptions(target))),
+  ]);
+  return {
+    ...checkin,
+    holders: Object.fromEntries(
+      assignTargets.map((target, index) => [target, holderLists[index]]),
+    ),
+  };
+}
+
 // Statuses an asset can get when it comes back, "In storage" first chosen.
 export async function getCheckinOptions(): Promise<CheckinOptions> {
   const statuses = await listStatuses();
