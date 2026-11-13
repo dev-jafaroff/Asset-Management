@@ -3,6 +3,7 @@ import {
   type ColumnVisibilityState,
   columnVisibilityFeature,
   createColumnHelper,
+  rowSelectionFeature,
   tableFeatures,
 } from "@tanstack/react-table";
 import { StatusBadge } from "@/components/assets/status-badge";
@@ -16,8 +17,11 @@ import {
 import type { AssetListItem } from "@/lib/assets/queries";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 
-// Features are added per step (sorting and selection come later).
-export const assetTableFeatures = tableFeatures({ columnVisibilityFeature });
+// Features are added per step (sorting comes later).
+export const assetTableFeatures = tableFeatures({
+  columnVisibilityFeature,
+  rowSelectionFeature,
+});
 
 type AssetColumn = ColumnDef<typeof assetTableFeatures, AssetListItem>;
 

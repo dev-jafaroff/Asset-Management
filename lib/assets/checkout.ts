@@ -1,7 +1,10 @@
 import {
+  getChangedFields,
   recordAssetCheckin,
   recordAssetCheckout,
+  recordAssetUpdate,
 } from "@/lib/assets/asset-events";
+import { assetFormFieldLabels } from "@/lib/assets/asset-form";
 import {
   getAssetTypeConfig,
   type AssignTarget,
@@ -11,8 +14,8 @@ import { getAssetSaveConflict } from "@/lib/assets/queries";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-// Checkout and checkin of one asset, shared by its page and, later, bulk
-// actions, scanning and offboarding on the user page.
+// Checkout, checkin and status changes of one asset, shared by its page,
+// bulk actions and, later, scanning and offboarding on the user page.
 
 // Everything the rules and the history entry need.
 const assignmentSelect = {
@@ -34,15 +37,15 @@ const holderData: Record<
   location: (holderId) => ({ locationId: holderId }),
 };
 
-type AssignmentChange = {
+type AssetChange = {
   assetId: number;
   // Null until sign-in exists (see lib/current-user.ts).
   actorId: number | null;
   note: string | null;
 };
 
-// Why a checkout or checkin was refused, as shown to the user; null when done.
-type AssignmentResult = string | null;
+// Why a change was refused, as shown to the user; null when done.
+export type AssetChangeResult = string | null;
 
 // What a checkout or checkin dialog shows when it cannot be saved: a message
 // for the whole dialog, or one under a field (holderId, statusId, note).
@@ -51,11 +54,11 @@ export type AssignmentErrors = {
   fields?: Record<string, string>;
 };
 
-// Runs one checkout or checkin; refusals by the database (e.g. a person
-// removed a moment ago) come back as a message too.
-async function runAssignment(
-  change: (tx: Prisma.TransactionClient) => Promise<AssignmentResult>,
-): Promise<AssignmentResult> {
+// Runs one change; refusals by the database (e.g. a person removed a moment
+// ago) come back as a message too.
+async function runAssetChange(
+  change: (tx: Prisma.TransactionClient) => Promise<AssetChangeResult>,
+): Promise<AssetChangeResult> {
   try {
     return await prisma.$transaction(change);
   } catch (error) {
@@ -66,13 +69,19 @@ async function runAssignment(
 }
 
 // Hands the asset to a person, company or location (per its type).
+// `assignTo` is the kind of holder chosen; when given, an asset of a type
+// that goes to another kind is refused, e.g. a VM given to a person.
 export function checkOutAsset({
   assetId,
   actorId,
   note,
   holderId,
-}: AssignmentChange & { holderId: number }): Promise<AssignmentResult> {
-  return runAssignment(async (tx) => {
+  assignTo: chosen,
+}: AssetChange & {
+  holderId: number;
+  assignTo?: AssignTarget;
+}): Promise<AssetChangeResult> {
+  return runAssetChange(async (tx) => {
     const asset = await tx.asset.findUnique({
       where: { id: assetId },
       select: assignmentSelect,
@@ -81,7 +90,10 @@ export function checkOutAsset({
     const blocker = getCheckoutBlocker(asset);
     if (blocker) return blocker;
 
-    const { assignTo } = getAssetTypeConfig(asset.type);
+    const { assignTo, label } = getAssetTypeConfig(asset.type);
+    if (chosen && chosen !== assignTo) {
+      return `${label} go to a ${assignTo}, not a ${chosen}.`;
+    }
     const checkedOut = await tx.asset.update({
       where: { id: assetId },
       data: holderData[assignTo](holderId),
@@ -98,8 +110,8 @@ export function checkInAsset({
   actorId,
   note,
   statusId,
-}: AssignmentChange & { statusId: number }): Promise<AssignmentResult> {
-  return runAssignment(async (tx) => {
+}: AssetChange & { statusId: number }): Promise<AssetChangeResult> {
+  return runAssetChange(async (tx) => {
     const asset = await tx.asset.findUnique({
       where: { id: assetId },
       select: assignmentSelect,
@@ -118,6 +130,51 @@ export function checkInAsset({
       after: checkedIn,
       actorId,
       note,
+    });
+    return null;
+  });
+}
+
+// Gives the asset another status, e.g. "In repair", and writes it to the
+// history. A handed-out asset keeps its holder, but cannot be archived.
+export function changeAssetStatus({
+  assetId,
+  actorId,
+  note,
+  statusId,
+}: AssetChange & { statusId: number }): Promise<AssetChangeResult> {
+  return runAssetChange(async (tx) => {
+    const asset = await tx.asset.findUnique({
+      where: { id: assetId },
+      select: assignmentSelect,
+    });
+    if (!asset) return "This asset no longer exists.";
+    const status = await tx.statusLabel.findUnique({
+      where: { id: statusId },
+      select: { type: true },
+    });
+    if (!status) return "This status no longer exists.";
+    if (status.type === "ARCHIVED" && isAssetAssigned(asset)) {
+      return "It is checked out: check it in first.";
+    }
+
+    const changed = await tx.asset.update({
+      where: { id: assetId },
+      data: { statusId },
+      select: assignmentSelect,
+    });
+    // Nothing is written when it already had this status.
+    await recordAssetUpdate(tx, {
+      assetId,
+      actorId,
+      note,
+      changes: getChangedFields([
+        {
+          field: assetFormFieldLabels.statusId,
+          from: asset.status.name,
+          to: changed.status.name,
+        },
+      ]),
     });
     return null;
   });

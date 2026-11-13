@@ -124,7 +124,10 @@ export async function recordAssetEvent(
   });
 }
 
-type AssetUpdateInput = Pick<AssetEventInput, "assetId" | "actorId"> & {
+type AssetUpdateInput = Pick<
+  AssetEventInput,
+  "assetId" | "actorId" | "note"
+> & {
   changes: FieldChange[];
 };
 

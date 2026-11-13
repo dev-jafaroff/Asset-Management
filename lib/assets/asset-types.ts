@@ -2,7 +2,8 @@ import type { AssetType } from "@/lib/generated/prisma/enums";
 
 // What an asset of this type is handed out to. Drives the derived "Assigned"
 // status, the status tabs and the holder column, so no code checks types by name.
-export type AssignTarget = "user" | "company" | "location";
+export const assignTargets = ["user", "company", "location"] as const;
+export type AssignTarget = (typeof assignTargets)[number];
 
 export type AssetTypeConfig = {
   type: AssetType;

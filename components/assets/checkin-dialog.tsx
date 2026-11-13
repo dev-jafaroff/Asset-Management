@@ -1,72 +1,59 @@
 "use client";
 
 import { LogIn } from "lucide-react";
-import { useId, useState } from "react";
-import { submitCheckin } from "@/app/(app)/assets/[type]/[id]/actions";
-import { AssignmentDialog } from "@/components/assets/checkout-dialog";
-import { ChoiceSelect, type Choice } from "@/components/shared/choice-select";
+import { useState } from "react";
 import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+  AssignmentDialog,
+  ChoiceField,
+  type AssignmentSubmit,
+} from "@/components/assets/assignment-dialog";
+import type { Choice } from "@/components/shared/choice-select";
+import type { CheckinValues } from "@/lib/schemas/asset";
 
 type CheckinDialogProps = {
-  assetId: number;
-  // e.g. "PC-00041", in the title.
-  assetName: string;
-  // Who or where it comes back from, e.g. "Aysel Huseynova".
-  holder: string;
+  // e.g. "Check in PC-00041" or "Check in 3 assets".
+  title: string;
+  // e.g. "Take it back from Aysel Huseynova."
+  description: string;
   statuses: Choice[];
   // Chosen when the dialog opens, e.g. "In storage".
   defaultStatusId: number | null;
+  onSubmit: AssignmentSubmit<CheckinValues>;
 };
 
-// Takes the asset back and sets the status it returns to.
+// Takes one asset, or a selection, back and sets the status it returns to.
 export function CheckinDialog({
-  assetId,
-  assetName,
-  holder,
+  title,
+  description,
   statuses,
   defaultStatusId,
+  onSubmit,
 }: CheckinDialogProps) {
   const [statusId, setStatusId] = useState(defaultStatusId);
-  const statusFieldId = useId();
 
   return (
     <AssignmentDialog
       triggerLabel="Check in"
       triggerIcon={LogIn}
-      title={`Check in ${assetName}`}
-      description={`Take it back from ${holder}.`}
+      title={title}
+      description={description}
       submitLabel="Check in"
       onOpen={() => setStatusId(defaultStatusId)}
-      onSubmit={(note) => submitCheckin(assetId, { statusId, note })}
+      onSubmit={(note) => onSubmit({ statusId, note })}
     >
       {(fieldErrors, clearFieldError) => (
-        <Field data-invalid={fieldErrors.statusId ? true : undefined}>
-          <FieldLabel htmlFor={statusFieldId}>Status after return</FieldLabel>
-          <ChoiceSelect
-            id={statusFieldId}
-            value={statusId}
-            onChange={(id) => {
-              setStatusId(id);
-              clearFieldError("statusId");
-            }}
-            choices={statuses}
-            placeholder="Choose a status"
-            invalid={Boolean(fieldErrors.statusId)}
-          />
-          {fieldErrors.statusId ? (
-            <FieldError>{fieldErrors.statusId}</FieldError>
-          ) : (
-            <FieldDescription>
-              In storage: ready to hand out again. Pending: waiting for a wipe
-              or a check.
-            </FieldDescription>
-          )}
-        </Field>
+        <ChoiceField
+          label="Status after return"
+          value={statusId}
+          onChange={(id) => {
+            setStatusId(id);
+            clearFieldError("statusId");
+          }}
+          choices={statuses}
+          placeholder="Choose a status"
+          error={fieldErrors.statusId}
+          description="In storage: ready to hand out again. Pending: waiting for a wipe or a check."
+        />
       )}
     </AssignmentDialog>
   );

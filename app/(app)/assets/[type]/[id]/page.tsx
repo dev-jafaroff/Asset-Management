@@ -12,6 +12,10 @@ import {
   AssetHistory,
   AssetHistoryFallback,
 } from "@/components/assets/asset-history";
+import {
+  submitCheckin,
+  submitCheckout,
+} from "@/app/(app)/assets/[type]/[id]/actions";
 import { AssetTypeIcon, SourceIcon } from "@/components/assets/asset-icons";
 import { AssetNotesCard } from "@/components/assets/asset-notes-card";
 import { CheckinDialog } from "@/components/assets/checkin-dialog";
@@ -256,21 +260,22 @@ async function AssignmentActions({ asset }: { asset: AssetDetail }) {
     const { statuses, defaultStatusId } = await getCheckinOptions();
     return (
       <CheckinDialog
-        assetId={asset.id}
-        assetName={assetName}
-        holder={holder}
+        title={`Check in ${assetName}`}
+        description={`Take it back from ${holder}.`}
         statuses={statuses}
         defaultStatusId={defaultStatusId}
+        onSubmit={submitCheckin.bind(null, asset.id)}
       />
     );
   }
   if (getCheckoutBlocker(asset)) return null;
   return (
     <CheckoutDialog
-      assetId={asset.id}
-      assetName={assetName}
+      title={`Check out ${assetName}`}
+      description={`Choose the ${assignTo} it goes to.`}
       assignTo={assignTo}
       holders={await getHolderOptions(assignTo)}
+      onSubmit={submitCheckout.bind(null, asset.id)}
     />
   );
 }
