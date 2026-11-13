@@ -15,6 +15,11 @@ import {
 } from "@/lib/assets/asset-form";
 import { getAssetPath } from "@/lib/assets/asset-types";
 import {
+  checkInAsset,
+  checkOutAsset,
+  type AssignmentErrors,
+} from "@/lib/assets/checkout";
+import {
   checkTakenIdentifiers,
   getAssetSaveConflict,
 } from "@/lib/assets/queries";
@@ -24,9 +29,13 @@ import { prisma } from "@/lib/prisma";
 import {
   assetIdSchema,
   assetNotesSchema,
+  checkinSchema,
+  checkoutSchema,
   getAssetFormSchema,
   getFirstFieldErrors,
   type AssetFormValues,
+  type CheckinValues,
+  type CheckoutValues,
 } from "@/lib/schemas/asset";
 
 export type NotesFormState =
@@ -147,4 +156,53 @@ export async function updateAsset(
   }
 
   redirect(getAssetPath(asset.type, id.data));
+}
+
+// Checks the asset out from its page; null when done. The page reloads, so
+// the Assignment card and the history show the new holder.
+export async function submitCheckout(
+  assetId: unknown,
+  values: CheckoutValues,
+): Promise<AssignmentErrors | null> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "asset:edit")) {
+    return { message: "You do not have permission to check out assets." };
+  }
+  const id = assetIdSchema.safeParse(assetId);
+  if (!id.success) return { message: "Unknown asset." };
+  const input = checkoutSchema.safeParse(values);
+  if (!input.success) return { fields: getFirstFieldErrors(input.error) };
+
+  const refused = await checkOutAsset({
+    assetId: id.data,
+    actorId: user.id,
+    ...input.data,
+  });
+  if (refused) return { message: refused };
+  refresh();
+  return null;
+}
+
+// Checks the asset in from its page, with the status it gets; null when done.
+export async function submitCheckin(
+  assetId: unknown,
+  values: CheckinValues,
+): Promise<AssignmentErrors | null> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "asset:edit")) {
+    return { message: "You do not have permission to check in assets." };
+  }
+  const id = assetIdSchema.safeParse(assetId);
+  if (!id.success) return { message: "Unknown asset." };
+  const input = checkinSchema.safeParse(values);
+  if (!input.success) return { fields: getFirstFieldErrors(input.error) };
+
+  const refused = await checkInAsset({
+    assetId: id.data,
+    actorId: user.id,
+    ...input.data,
+  });
+  if (refused) return { message: refused };
+  refresh();
+  return null;
 }

@@ -308,6 +308,7 @@ const assetEventSelect = {
   type: true,
   createdAt: true,
   changes: true,
+  note: true,
   actor: { select: { id: true, displayName: true } },
   targetUser: { select: { id: true, displayName: true } },
 } satisfies Prisma.AssetEventSelect;

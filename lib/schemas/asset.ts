@@ -179,3 +179,32 @@ export function getFirstFieldErrors(error: z.ZodError): Record<string, string> {
   }
   return errors;
 }
+
+// ─── Checkout and checkin ────────────────────────────────────────────────────
+
+export const ASSET_EVENT_NOTE_MAX_LENGTH = 500;
+
+const eventNoteSchema = optionalText(ASSET_EVENT_NOTE_MAX_LENGTH);
+
+// An id chosen from a list that starts empty (null) and must be filled in.
+function requiredChoice(message: string) {
+  return optionalId.transform((id, ctx) => {
+    if (id !== null) return id;
+    ctx.addIssue({ code: "custom", message });
+    return z.NEVER;
+  });
+}
+
+export const checkoutSchema = z.object({
+  // The person, company or location, per the asset type's assignTo.
+  holderId: requiredChoice("Choose who gets it."),
+  note: eventNoteSchema,
+});
+
+export const checkinSchema = z.object({
+  statusId: requiredChoice("Choose a status."),
+  note: eventNoteSchema,
+});
+
+export type CheckoutValues = z.input<typeof checkoutSchema>;
+export type CheckinValues = z.input<typeof checkinSchema>;

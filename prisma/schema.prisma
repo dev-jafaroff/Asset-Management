@@ -185,6 +185,8 @@ model AssetEvent {
   targetUserId Int?
   targetUser   User?          @relation("EventTargetUser", fields: [targetUserId], references: [id], onDelete: Restrict)
   changes      Json?
+  // Free text typed with a checkout or checkin, e.g. "Charger handed over".
+  note         String?
   createdAt    DateTime       @default(now())
 
   @@index([assetId, createdAt])

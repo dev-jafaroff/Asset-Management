@@ -94,16 +94,33 @@ type AssetEventInput = {
   // The person a checkout or checkin was for.
   targetUserId?: number | null;
   changes?: FieldChange[];
+  // Typed with a checkout or checkin, e.g. "Charger handed over".
+  note?: string | null;
 };
 
 // Writes one history event. Call it in the same transaction as the change,
 // so a change is never saved without its history entry.
 export async function recordAssetEvent(
   tx: Prisma.TransactionClient,
-  { assetId, actorId, type, targetUserId = null, changes }: AssetEventInput,
+  {
+    assetId,
+    actorId,
+    type,
+    targetUserId = null,
+    changes = [],
+    note = null,
+  }: AssetEventInput,
 ): Promise<void> {
   await tx.assetEvent.create({
-    data: { assetId, actorId, type, targetUserId, changes },
+    data: {
+      assetId,
+      actorId,
+      type,
+      targetUserId,
+      // An event without field changes stores none, not an empty list.
+      changes: changes.length > 0 ? changes : undefined,
+      note,
+    },
   });
 }
 
@@ -120,35 +137,74 @@ export async function recordAssetUpdate(
   await recordAssetEvent(tx, { ...input, type: "UPDATED" });
 }
 
-type AssetCheckoutInput = Pick<AssetEventInput, "actorId"> & {
-  asset: AssetAssignment & { id: number };
+// ─── Checkout and checkin ────────────────────────────────────────────────────
+
+type AssetHolderState = AssetAssignment & { id: number };
+
+// A person is linked as the event's target. A company or location has no such
+// link, so it is written as a change (e.g. "Location: — → Server room").
+function getHolderChanges(
+  before: AssetHolderState | null,
+  after: AssetHolderState,
+): FieldChange[] {
+  const { assignTo } = getAssetTypeConfig(after.type);
+  if (assignTo === "user") return [];
+  return getChangedFields([
+    {
+      field: assetFormFieldLabels[holderFields[assignTo]],
+      from: before && getAssetHolder(before),
+      to: getAssetHolder(after),
+    },
+  ]);
+}
+
+type AssetCheckoutInput = Pick<AssetEventInput, "actorId" | "note"> & {
+  asset: AssetHolderState;
 };
 
 // The CHECKOUT event for an asset's current holder; nothing when it has none.
-// A person is linked as the target; a company or location is written as a
-// change (e.g. "Location: — → Server room"), so history names it too.
 export async function recordAssetCheckout(
   tx: Prisma.TransactionClient,
-  { asset, actorId }: AssetCheckoutInput,
+  { asset, actorId, note }: AssetCheckoutInput,
 ): Promise<void> {
-  const holder = getAssetHolder(asset);
-  if (!holder) return;
-
-  const { assignTo } = getAssetTypeConfig(asset.type);
+  if (!getAssetHolder(asset)) return;
   await recordAssetEvent(tx, {
     assetId: asset.id,
     actorId,
     type: "CHECKOUT",
     targetUserId: asset.assignedTo?.id ?? null,
-    changes:
-      assignTo === "user"
-        ? undefined
-        : [
-            {
-              field: assetFormFieldLabels[holderFields[assignTo]],
-              from: null,
-              to: holder,
-            },
-          ],
+    changes: getHolderChanges(null, asset),
+    note,
+  });
+}
+
+type AssetCheckinInput = Pick<AssetEventInput, "actorId" | "note"> & {
+  // The asset before and after the checkin, with its status.
+  before: AssetHolderState & { status: { name: string } };
+  after: AssetHolderState & { status: { name: string } };
+};
+
+// The CHECKIN event: who or where it came back from, and the status it got,
+// e.g. "Status: In stock → In storage".
+export async function recordAssetCheckin(
+  tx: Prisma.TransactionClient,
+  { before, after, actorId, note }: AssetCheckinInput,
+): Promise<void> {
+  await recordAssetEvent(tx, {
+    assetId: after.id,
+    actorId,
+    type: "CHECKIN",
+    targetUserId: before.assignedTo?.id ?? null,
+    changes: [
+      ...getHolderChanges(before, after),
+      ...getChangedFields([
+        {
+          field: assetFormFieldLabels.statusId,
+          from: before.status.name,
+          to: after.status.name,
+        },
+      ]),
+    ],
+    note,
   });
 }
