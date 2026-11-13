@@ -6,7 +6,6 @@ import {
   bulkChangeStatus,
   bulkCheckIn,
   bulkCheckOut,
-  type BulkActionResult,
 } from "@/app/(app)/assets/actions";
 import {
   AssignmentDialog,
@@ -15,10 +14,15 @@ import {
 } from "@/components/assets/assignment-dialog";
 import { CheckinDialog } from "@/components/assets/checkin-dialog";
 import { CheckoutDialog } from "@/components/assets/checkout-dialog";
+import {
+  BulkOutcomeMessage,
+  handleBulkResult,
+  type BulkOutcome,
+} from "@/components/shared/bulk-outcome";
 import { Button } from "@/components/ui/button";
 import type { BulkActionOptions } from "@/lib/assets/asset-form-options";
 import { getAssetTypeConfig } from "@/lib/assets/asset-types";
-import type { BulkSummary } from "@/lib/assets/bulk-actions";
+import type { BulkActionResult } from "@/lib/assets/bulk-actions";
 import type { AssetListItem } from "@/lib/assets/queries";
 import type { CheckoutValues, StatusChangeValues } from "@/lib/schemas/asset";
 import { formatCount } from "@/lib/utils";
@@ -30,9 +34,6 @@ type BulkActionBarProps = {
   onClear: () => void;
 };
 
-// What the last action did, e.g. "Checked out" with its summary.
-type Outcome = BulkSummary & { action: string };
-
 // Above an asset list: what is selected and what can be done with it, or,
 // once an action ran, what it did.
 export function BulkActionBar({
@@ -40,14 +41,17 @@ export function BulkActionBar({
   options,
   onClear,
 }: BulkActionBarProps) {
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [outcome, setOutcome] = useState<BulkOutcome | null>(null);
 
   // A new selection starts a new round, so the old summary goes.
   if (selected.length > 0 && outcome) setOutcome(null);
 
   if (selected.length === 0) {
     return outcome ? (
-      <OutcomeMessage outcome={outcome} onDismiss={() => setOutcome(null)} />
+      <BulkOutcomeMessage
+        outcome={outcome}
+        onDismiss={() => setOutcome(null)}
+      />
     ) : null;
   }
 
@@ -61,10 +65,10 @@ export function BulkActionBar({
   ): AssignmentSubmit<Values> {
     return async (values) => {
       const result = await action(assetIds, values);
-      if ("errors" in result) return result.errors;
-      setOutcome({ ...result.summary, action: actionLabel });
-      onClear();
-      return null;
+      return handleBulkResult(result, actionLabel, (outcome) => {
+        setOutcome(outcome);
+        onClear();
+      });
     };
   }
 
@@ -164,55 +168,5 @@ function StatusDialog({ title, statuses, onSubmit }: StatusDialogProps) {
         />
       )}
     </AssignmentDialog>
-  );
-}
-
-type OutcomeMessageProps = {
-  outcome: Outcome;
-  onDismiss: () => void;
-};
-
-// e.g. "Checked out 2 assets. Skipped 1: PC-00007 — In repair assets cannot
-// be checked out."
-function OutcomeMessage({ outcome, onDismiss }: OutcomeMessageProps) {
-  const { action, done, skipped } = outcome;
-
-  return (
-    <div
-      role="status"
-      className="flex items-start gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm"
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="font-medium">
-          {done > 0
-            ? `${action} ${formatCount(done, "asset")}.`
-            : "Nothing was changed."}
-        </p>
-        {skipped.length > 0 && (
-          <div className="text-muted-foreground">
-            <p>Skipped {skipped.length}:</p>
-            <ul className="list-inside list-disc">
-              {skipped.map((asset) => (
-                <li key={asset.assetId}>
-                  <span className="font-medium text-foreground">
-                    {asset.name}
-                  </span>
-                  {" — "}
-                  {asset.reason}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onDismiss}
-        aria-label="Dismiss"
-      >
-        <X aria-hidden />
-      </Button>
-    </div>
   );
 }

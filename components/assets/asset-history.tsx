@@ -55,6 +55,7 @@ const eventStyles: Record<AssetEventType, EventStyle> = {
   },
 };
 
+// The card around a history list; the count shows once it is loaded.
 function HistoryCard({
   count,
   children,
@@ -91,15 +92,23 @@ function ChangeList({ changes }: { changes: FieldChange[] }) {
   );
 }
 
-function HistoryEntry({
+// What an event is about, after its label: the person on an asset page
+// ("Checked out to Aysel Huseynova"), the asset on a person's page.
+type HistorySubject<Event> = (event: Event, style: EventStyle) => ReactNode;
+
+type HistoryEntryProps<Event extends AssetHistoryEvent> = {
+  event: Event;
+  isLast: boolean;
+  subject: HistorySubject<Event>;
+};
+
+function HistoryEntry<Event extends AssetHistoryEvent>({
   event,
   isLast,
-}: {
-  event: AssetHistoryEvent;
-  isLast: boolean;
-}) {
+  subject,
+}: HistoryEntryProps<Event>) {
   const style = eventStyles[event.type];
-  const target = style.targetPreposition && event.targetUser;
+  const about = subject(event, style);
 
   return (
     <li className="relative flex gap-3 pb-5 last:pb-0">
@@ -114,14 +123,7 @@ function HistoryEntry({
       <div className="min-w-0 flex-1 pt-1">
         <p>
           <span className="font-medium">{style.label}</span>
-          {target && (
-            <>
-              {` ${style.targetPreposition} `}
-              <span className="font-medium text-primary">
-                {target.displayName}
-              </span>
-            </>
-          )}
+          {about && <> {about}</>}
         </p>
         <p className="text-xs text-muted-foreground">
           {event.actor && `by ${event.actor.displayName} · `}
@@ -138,10 +140,17 @@ function HistoryEntry({
   );
 }
 
-// Everything that happened to the asset, newest first (from AssetEvent).
-export async function AssetHistory({ assetId }: { assetId: number }) {
-  const events = await listAssetHistory(assetId);
+type HistoryProps<Event extends AssetHistoryEvent> = {
+  // Newest first.
+  events: Event[];
+  subject: HistorySubject<Event>;
+};
 
+// A history card with its timeline of events, or a note when there are none.
+export function History<Event extends AssetHistoryEvent>({
+  events,
+  subject,
+}: HistoryProps<Event>) {
   return (
     <HistoryCard count={events.length}>
       {events.length === 0 ? (
@@ -153,6 +162,7 @@ export async function AssetHistory({ assetId }: { assetId: number }) {
               key={event.id}
               event={event}
               isLast={index === events.length - 1}
+              subject={subject}
             />
           ))}
         </ol>
@@ -161,7 +171,25 @@ export async function AssetHistory({ assetId }: { assetId: number }) {
   );
 }
 
-export function AssetHistoryFallback() {
+// The person a checkout or checkin was for, e.g. "to Aysel Huseynova".
+const assetEventSubject: HistorySubject<AssetHistoryEvent> = (event, style) =>
+  style.targetPreposition &&
+  event.targetUser && (
+    <>
+      {`${style.targetPreposition} `}
+      <span className="font-medium text-primary">
+        {event.targetUser.displayName}
+      </span>
+    </>
+  );
+
+// Everything that happened to the asset, newest first (from AssetEvent).
+export async function AssetHistory({ assetId }: { assetId: number }) {
+  const events = await listAssetHistory(assetId);
+  return <History events={events} subject={assetEventSubject} />;
+}
+
+export function HistoryFallback() {
   return (
     <HistoryCard>
       <p className="text-muted-foreground">Loading history…</p>

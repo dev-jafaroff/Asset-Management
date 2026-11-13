@@ -299,11 +299,11 @@ function isFieldChange(value: unknown): value is FieldChange {
 }
 
 // The column is free JSON, so anything not in the expected shape is skipped.
-function parseFieldChanges(changes: Prisma.JsonValue): FieldChange[] {
+export function parseFieldChanges(changes: Prisma.JsonValue): FieldChange[] {
   return Array.isArray(changes) ? changes.filter(isFieldChange) : [];
 }
 
-const assetEventSelect = {
+export const assetEventSelect = {
   id: true,
   type: true,
   createdAt: true,

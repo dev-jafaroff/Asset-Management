@@ -175,12 +175,12 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [x] Asset list: table per type, status tabs, search, pagination, sidebar "By status"
 - [x] Type icons in tables and sidebar from one icon registry
 - [ ] Asset list filters (company, location, model)
-- [ ] Bulk actions on selected assets: check out, check in, change status, print labels
+- [x] Bulk actions on selected assets: check out, check in, change status (print labels: Phase 5)
 - [ ] Asset detail page and history timeline
 - [x] Create and edit form per type (Intune fields read-only, phone number for phones, company for VMs)
 - [x] Checkout / checkin dialogs
 - [ ] Accessories: stock list, assign / return by quantity
-- [ ] Users list and user detail page: all assigned items, "check in all" for offboarding
+- [x] Users list and user detail page: all assigned items, "check in all" for offboarding
 - [ ] Handover PDF from the user page (optional; HR issues the official act)
 - [ ] Dashboard: clickable status tiles, assets by type, recent activity
 - [ ] Dashboard "Needs attention": missing in Intune, long in repair, inactive users still holding items
@@ -208,7 +208,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 ### Phase 5 — QR
 
 - [ ] QR for new labeled assets — PCs, monitors, printers (`/a/[assetTag]` URL)
-- [ ] Label printing page: PDF for selected assets
+- [ ] Label printing page: PDF for selected assets, from "Print labels" in the list selection bar and "Print label" next to Edit on the asset page
 - [ ] Camera scan page (both legacy and new format)
 - [ ] Quick checkin / checkout after scanning
 - [ ] Scan modes (Open / Check out / Check in) for scanning many items in a row, with a per-session scan log
