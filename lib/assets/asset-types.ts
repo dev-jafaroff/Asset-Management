@@ -91,9 +91,19 @@ export function getAssetTypePath(slug: string): string {
   return `${ASSETS_PATH}/${slug}`;
 }
 
+// Form for a new asset of one type, e.g. "/assets/pcs/new".
+export function getNewAssetPath(slug: string): string {
+  return `${getAssetTypePath(slug)}/new`;
+}
+
 // Detail page of one asset, e.g. "/assets/pcs/7".
 export function getAssetPath(type: AssetType, id: number): string {
   return `${getAssetTypePath(getAssetTypeConfig(type).slug)}/${id}`;
+}
+
+// Edit form of one asset, e.g. "/assets/pcs/7/edit".
+export function getEditAssetPath(type: AssetType, id: number): string {
+  return `${getAssetPath(type, id)}/edit`;
 }
 
 const TAG_SEQUENCE_DIGITS = 5;
@@ -111,4 +121,12 @@ export function getAssetTypeConfig(type: AssetType): AssetTypeConfig {
   const config = assetTypeConfigs.find((entry) => entry.type === type);
   if (!config) throw new Error(`Unknown asset type: ${type}`);
   return config;
+}
+
+// The singular label inside a sentence: "New virtual machine", but "New PC".
+export function getAssetNoun(config: AssetTypeConfig): string {
+  const { singularLabel } = config;
+  return singularLabel === singularLabel.toUpperCase()
+    ? singularLabel
+    : singularLabel.charAt(0).toLowerCase() + singularLabel.slice(1);
 }

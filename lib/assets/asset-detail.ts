@@ -1,9 +1,12 @@
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
+import { getAssetTypeBySlug } from "@/lib/assets/asset-types";
 import { assetListSelect } from "@/lib/assets/queries";
 import { formatModelName } from "@/lib/assets/format";
 import { prisma } from "@/lib/prisma";
+import { getPositiveIntParam } from "@/lib/search-params";
 import { daysBetween, formatAge, formatDate } from "@/lib/utils";
 
 // Everything the list shows, plus the fields only the detail page needs.
@@ -42,6 +45,22 @@ export const getAssetDetail = cache(
   async (id: number): Promise<AssetDetail | null> =>
     prisma.asset.findUnique({ where: { id }, select: assetDetailSelect }),
 );
+
+// The asset of an /assets/[type]/[id] page (detail or edit). An unknown id
+// is a 404; an old or hand-typed link with the wrong type (e.g.
+// /assets/monitors/7 for a PC) goes to `pathFor` the asset's real type.
+export async function getRouteAsset(
+  route: { type: string; id: string },
+  pathFor: (type: AssetType, id: number) => string,
+): Promise<AssetDetail> {
+  const id = getPositiveIntParam(route, "id");
+  const asset = id === undefined ? null : await getAssetDetail(id);
+  if (!asset) notFound();
+  if (getAssetTypeBySlug(route.type)?.type !== asset.type) {
+    redirect(pathFor(asset.type, asset.id));
+  }
+  return asset;
+}
 
 export function getCheckedOutAt(asset: AssetDetail): Date | null {
   return asset.events[0]?.createdAt ?? null;
@@ -150,10 +169,14 @@ const costFormat = new Intl.NumberFormat("en-GB", {
   maximumFractionDigits: 2,
 });
 
+export function formatCost(cost: Prisma.Decimal): string {
+  return `${costFormat.format(Number(cost))} ₼`;
+}
+
 function formatPurchase(asset: AssetDetail): string | null {
   const parts = [
     asset.purchaseDate && formatDate(asset.purchaseDate),
-    asset.purchaseCost && `${costFormat.format(Number(asset.purchaseCost))} ₼`,
+    asset.purchaseCost && formatCost(asset.purchaseCost),
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : null;
 }

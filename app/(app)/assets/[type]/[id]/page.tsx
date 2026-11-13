@@ -1,6 +1,12 @@
-import { Building2, ExternalLink, LockKeyhole, MapPin } from "lucide-react";
+import {
+  Building2,
+  ExternalLink,
+  LockKeyhole,
+  MapPin,
+  Pencil,
+} from "lucide-react";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { Suspense, type ComponentProps, type ReactNode } from "react";
 import {
   AssetHistory,
@@ -14,8 +20,10 @@ import { CopyButton } from "@/components/shared/copy-button";
 import { DateTime } from "@/components/shared/date-time";
 import { DetailList } from "@/components/shared/detail-list";
 import { IconTile } from "@/components/shared/icon-tile";
+import { RequirePermission } from "@/components/shared/require-permission";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -27,8 +35,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   buildDetailSections,
   getAssetSourceBadge,
-  getAssetDetail,
   getCheckedOutAt,
+  getRouteAsset,
   type AssetDetail,
   type DetailField,
   type DetailSection,
@@ -36,9 +44,9 @@ import {
 import {
   ASSETS_PATH,
   getAssetPath,
-  getAssetTypeBySlug,
   getAssetTypeConfig,
   getAssetTypePath,
+  getEditAssetPath,
   type AssignTarget,
 } from "@/lib/assets/asset-types";
 import {
@@ -49,23 +57,12 @@ import {
 } from "@/lib/assets/format";
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
-import { getPositiveIntParam } from "@/lib/search-params";
 
 type AssetPageProps = PageProps<"/assets/[type]/[id]">;
 
 // Shared by the page and its metadata; cached per request (see getAssetDetail).
 async function loadAsset(params: AssetPageProps["params"]) {
-  const route = await params;
-  const id = getPositiveIntParam(route, "id");
-  const asset = id === undefined ? null : await getAssetDetail(id);
-  if (!asset) notFound();
-
-  // An old or hand-typed link with the wrong type (e.g. /assets/monitors/7
-  // for a PC) goes to the asset's real page.
-  if (getAssetTypeBySlug(route.type)?.type !== asset.type) {
-    redirect(getAssetPath(asset.type, asset.id));
-  }
-  return asset;
+  return getRouteAsset(await params, getAssetPath);
 }
 
 export async function generateMetadata({
@@ -163,6 +160,18 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
             <StatusBadge status={getAssetDisplayStatus(asset)} />
             <SourceBadge asset={asset} />
           </>
+        }
+        actions={
+          <RequirePermission permission="asset:edit">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={getEditAssetPath(asset.type, asset.id)} />}
+            >
+              <Pencil aria-hidden />
+              Edit
+            </Button>
+          </RequirePermission>
         }
       />
 
