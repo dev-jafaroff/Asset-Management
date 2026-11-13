@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
+import { ChoiceSelect } from "@/components/shared/choice-select";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,14 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
 import {
   Field,
   FieldDescription,
@@ -40,13 +33,6 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -63,10 +49,7 @@ import {
   type AssetListField,
   type AssetTextField,
 } from "@/lib/assets/asset-form";
-import type {
-  AssetFormOptions,
-  FormOption,
-} from "@/lib/assets/asset-form-options";
+import type { AssetFormOptions } from "@/lib/assets/asset-form-options";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
 import {
   ASSET_NOTES_MAX_LENGTH,
@@ -456,7 +439,6 @@ function ListField({
   const id = useId();
   const spec = listFieldSpecs[name];
   const choices = options[spec.options];
-  const Control = spec.searchable ? SearchSelect : PlainSelect;
 
   return (
     <Controller
@@ -470,8 +452,9 @@ function ListField({
           hideLabel={hideLabel}
           error={fieldState.error?.message}
         >
-          <Control
+          <ChoiceSelect
             id={id}
+            searchable={spec.searchable}
             value={field.value}
             onChange={field.onChange}
             onBlur={field.onBlur}
@@ -484,123 +467,6 @@ function ListField({
         </FieldShell>
       )}
     />
-  );
-}
-
-type ChoiceControlProps = {
-  id: string;
-  value: number | null;
-  onChange: (value: number | null) => void;
-  onBlur: () => void;
-  // Lets the form focus the control when the server rejects its value.
-  inputRef: (element: HTMLElement | null) => void;
-  choices: FormOption[];
-  placeholder: string;
-  // Optional fields can be emptied again.
-  clearable: boolean;
-  invalid: boolean;
-};
-
-// A short list (statuses, companies, locations).
-function PlainSelect({
-  id,
-  value,
-  onChange,
-  onBlur,
-  inputRef,
-  choices,
-  placeholder,
-  clearable,
-  invalid,
-}: ChoiceControlProps) {
-  // null is the "empty" entry, e.g. "No company".
-  const items = [
-    ...(clearable ? [{ value: null, label: placeholder }] : []),
-    ...choices,
-  ];
-
-  return (
-    <Select items={items} value={value} onValueChange={onChange}>
-      <SelectTrigger
-        id={id}
-        ref={inputRef}
-        onBlur={onBlur}
-        aria-invalid={invalid || undefined}
-        className="w-full"
-      >
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {items.map((item) => (
-          <SelectItem key={item.value ?? "none"} value={item.value}>
-            {item.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-// Every typed word must appear in the label or the description, so
-// "aysel it" finds Aysel Huseynova from the IT department.
-function matchesChoice(choice: FormOption, query: string): boolean {
-  const text = `${choice.label} ${choice.description ?? ""}`.toLowerCase();
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .every((word) => text.includes(word));
-}
-
-// A long list (models, people), searched by typing.
-function SearchSelect({
-  id,
-  value,
-  onChange,
-  onBlur,
-  inputRef,
-  choices,
-  placeholder,
-  clearable,
-  invalid,
-}: ChoiceControlProps) {
-  const selected = choices.find((choice) => choice.value === value) ?? null;
-
-  return (
-    <Combobox
-      items={choices}
-      value={selected}
-      onValueChange={(choice) => onChange(choice?.value ?? null)}
-      itemToStringLabel={(choice) => choice.label}
-      isItemEqualToValue={(choice, other) => choice.value === other.value}
-      filter={matchesChoice}
-      inputRef={inputRef}
-    >
-      <ComboboxInput
-        id={id}
-        placeholder={placeholder}
-        onBlur={onBlur}
-        showClear={clearable && selected !== null}
-        aria-invalid={invalid || undefined}
-        className="w-full"
-      />
-      <ComboboxContent>
-        <ComboboxEmpty>No matches.</ComboboxEmpty>
-        <ComboboxList>
-          {(choice: FormOption) => (
-            <ComboboxItem key={choice.value} value={choice}>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate">{choice.label}</span>
-                {choice.description && (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {choice.description}
-                  </span>
-                )}
-              </span>
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
   );
 }
 

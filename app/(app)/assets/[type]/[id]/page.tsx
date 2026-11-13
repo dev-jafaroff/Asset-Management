@@ -14,6 +14,8 @@ import {
 } from "@/components/assets/asset-history";
 import { AssetTypeIcon, SourceIcon } from "@/components/assets/asset-icons";
 import { AssetNotesCard } from "@/components/assets/asset-notes-card";
+import { CheckinDialog } from "@/components/assets/checkin-dialog";
+import { CheckoutDialog } from "@/components/assets/checkout-dialog";
 import { StatusBadge } from "@/components/assets/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { CopyButton } from "@/components/shared/copy-button";
@@ -54,7 +56,12 @@ import {
   getAssetDisplayName,
   getAssetDisplayStatus,
   getAssetHolder,
+  getCheckoutBlocker,
 } from "@/lib/assets/format";
+import {
+  getCheckinOptions,
+  getHolderOptions,
+} from "@/lib/assets/asset-form-options";
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
 
@@ -238,15 +245,52 @@ const holderDetails: Record<AssignTarget, (asset: AssetDetail) => ReactNode> = {
   location: () => "Location",
 };
 
+// Check out when the asset is free, check in when it is handed out.
+// The lists are only loaded for people who may use them.
+async function AssignmentActions({ asset }: { asset: AssetDetail }) {
+  const { assignTo } = getAssetTypeConfig(asset.type);
+  const holder = getAssetHolder(asset);
+  const assetName = getAssetDisplayName(asset);
+
+  if (holder) {
+    const { statuses, defaultStatusId } = await getCheckinOptions();
+    return (
+      <CheckinDialog
+        assetId={asset.id}
+        assetName={assetName}
+        holder={holder}
+        statuses={statuses}
+        defaultStatusId={defaultStatusId}
+      />
+    );
+  }
+  if (getCheckoutBlocker(asset)) return null;
+  return (
+    <CheckoutDialog
+      assetId={asset.id}
+      assetName={assetName}
+      assignTo={assignTo}
+      holders={await getHolderOptions(assignTo)}
+    />
+  );
+}
+
 function AssignmentCard({ asset }: { asset: AssetDetail }) {
   const { assignTo } = getAssetTypeConfig(asset.type);
   const holder = getAssetHolder(asset);
   const checkedOutAt = getCheckedOutAt(asset);
+  // e.g. "In repair assets cannot be checked out."
+  const blocker = holder ? null : getCheckoutBlocker(asset);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Assignment</CardTitle>
+        <CardAction>
+          <RequirePermission permission="asset:edit">
+            <AssignmentActions asset={asset} />
+          </RequirePermission>
+        </CardAction>
       </CardHeader>
       <CardContent>
         {holder ? (
@@ -272,9 +316,10 @@ function AssignmentCard({ asset }: { asset: AssetDetail }) {
         ) : (
           <div className="flex items-center gap-3">
             <AssetTypeIcon type={asset.type} size="md" />
-            <p className="text-muted-foreground">
-              Not assigned to a {assignTo}.
-            </p>
+            <div className="text-muted-foreground">
+              <p>Not assigned to a {assignTo}.</p>
+              {blocker && <p className="text-xs">{blocker}</p>}
+            </div>
           </div>
         )}
       </CardContent>

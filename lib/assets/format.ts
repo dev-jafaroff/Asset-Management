@@ -65,3 +65,13 @@ export function getAssetDisplayStatus(asset: AssetWithStatus): DisplayStatus {
   }
   return { label: asset.status.name, color: asset.status.color };
 }
+
+// Why an asset cannot be checked out now, or null when it can. Only assets
+// ready to hand out (In stock, In storage) can; one in repair or archived not.
+export function getCheckoutBlocker(asset: AssetWithStatus): string | null {
+  if (isAssetAssigned(asset)) return "It is already checked out.";
+  if (asset.status.type !== "DEPLOYABLE") {
+    return `${asset.status.name} assets cannot be checked out.`;
+  }
+  return null;
+}

@@ -128,6 +128,11 @@ function HistoryEntry({
           <DateTime date={event.createdAt} />
         </p>
         {event.changes.length > 0 && <ChangeList changes={event.changes} />}
+        {event.note && (
+          <p className="mt-1.5 text-xs whitespace-pre-wrap text-muted-foreground italic">
+            “{event.note}”
+          </p>
+        )}
       </div>
     </li>
   );
