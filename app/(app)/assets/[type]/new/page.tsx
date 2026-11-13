@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AssetForm, AssetFormFallback } from "@/components/assets/asset-form";
 import { PageHeader } from "@/components/layout/page-header";
-import { getEmptyAssetFormValues } from "@/lib/assets/asset-form";
+import { getNewAssetFormValues } from "@/lib/assets/asset-form";
 import { getAssetFormOptions } from "@/lib/assets/asset-form-options";
 import { getNextAssetTag } from "@/lib/assets/asset-tags";
 import {
@@ -64,12 +64,13 @@ async function NewAssetContent({ params }: Pick<NewAssetPageProps, "params">) {
       />
       <AssetForm
         type={config.type}
+        mode="create"
+        source="MANUAL"
         options={options}
-        defaultValues={{
-          ...getEmptyAssetFormValues(),
+        defaultValues={getNewAssetFormValues(config.type, {
           assetTag: nextTag,
           statusId: options.defaultStatusId,
-        }}
+        })}
         action={createAsset.bind(null, config.type)}
         submitLabel={`Add ${getAssetNoun(config)}`}
         cancelHref={listPath}

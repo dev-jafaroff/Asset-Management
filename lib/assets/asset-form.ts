@@ -2,7 +2,8 @@ import {
   getAssetTypeConfig,
   type AssignTarget,
 } from "@/lib/assets/asset-types";
-import type { AssetType } from "@/lib/generated/prisma/enums";
+import type { AssetDetail } from "@/lib/assets/asset-detail";
+import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
 import type { AssetFormData, AssetFormValues } from "@/lib/schemas/asset";
 
 // Every field the asset form can show. Which ones a type shows is decided
@@ -89,10 +90,13 @@ type TypeFormConfig = {
   hasSerial?: boolean;
   // Defaults to the model: a phone or a monitor is known by it.
   required?: AssetFormField[];
+  // A new asset is named after its tag, e.g. workstation PC-00041 is called
+  // "PC-00041"; the rare exception is renamed by hand.
+  nameFromTag?: boolean;
 };
 
 const typeFormConfigs: Record<AssetType, TypeFormConfig> = {
-  PC: { identity: ["name"] },
+  PC: { identity: ["name"], nameFromTag: true },
   MONITOR: {},
   PRINTER: {},
   PHONE: {
@@ -122,8 +126,15 @@ export type AssetFormSection = {
   fields: AssetFormField[];
 };
 
+// A new asset can be assigned right away; an existing one is checked out or
+// in from its page instead, so editing never moves it to another holder.
+export type AssetFormMode = "create" | "edit";
+
 // Cards of the form for one type, in display order.
-export function getAssetFormSections(type: AssetType): AssetFormSection[] {
+export function getAssetFormSections(
+  type: AssetType,
+  mode: AssetFormMode,
+): AssetFormSection[] {
   const { tagPrefix, assignTo } = getAssetTypeConfig(type);
   const { identity = [], section, hasSerial = true } = typeFormConfigs[type];
   const holderField = holderFields[assignTo];
@@ -143,19 +154,56 @@ export function getAssetFormSections(type: AssetType): AssetFormSection[] {
   return [
     { title: "Details", fields: details },
     ...(section ? [section] : []),
-    {
-      title: "Assignment",
-      description: "Optional: leave it empty to keep the asset in stock.",
-      fields: [holderField],
-    },
+    ...(mode === "create"
+      ? [
+          {
+            title: "Assignment",
+            description: "Optional: leave it empty to keep the asset in stock.",
+            fields: [holderField],
+          },
+        ]
+      : []),
     { title: "Purchase", fields: ["purchaseDate", "purchaseCost"] },
     { title: "Notes", fields: ["notes"] },
   ];
 }
 
-// Every field the form of this type shows; the save ignores all others.
-export function getAssetFormFields(type: AssetType): AssetFormField[] {
-  return getAssetFormSections(type).flatMap((section) => section.fields);
+// Fields owned by Intune for synced devices (see docs/PLAN.md, field ownership).
+const intuneOwnedFields: AssetFormField[] = [
+  "name",
+  "serial",
+  "operatingSystem",
+];
+
+// Fields shown in the form but not editable, with the reason shown under each.
+export function getLockedAssetFields(
+  mode: AssetFormMode,
+  source: AssetSource,
+): Partial<Record<AssetFormField, string>> {
+  const locked: Partial<Record<AssetFormField, string>> = {};
+  if (mode === "edit") locked.assetTag = "Printed on the label, so it stays.";
+  if (source === "INTUNE") {
+    for (const field of intuneOwnedFields)
+      locked[field] = "Synced from Intune.";
+  }
+  return locked;
+}
+
+// The fields a save writes: every field the form shows, except locked ones.
+export function getEditableAssetFields(
+  type: AssetType,
+  mode: AssetFormMode,
+  source: AssetSource,
+): AssetFormField[] {
+  const locked = getLockedAssetFields(mode, source);
+  return getAssetFormSections(type, mode)
+    .flatMap((section) => section.fields)
+    .filter((field) => !locked[field]);
+}
+
+// Whether a new asset of this type takes its tag as its name.
+export function isNamedAfterTag(type: AssetType): boolean {
+  return typeFormConfigs[type].nameFromTag ?? false;
 }
 
 // Fields the form cannot be saved without.
@@ -169,13 +217,13 @@ export function getRequiredAssetFields(type: AssetType): AssetFormField[] {
   ];
 }
 
-// Only the fields the type's form shows: anything else that was sent (e.g. a
-// phone number for a PC) is not saved.
+// Only the editable fields: anything else that was sent (e.g. a phone number
+// for a PC, or a changed tag) is not saved.
 export function pickAssetFormData(
-  type: AssetType,
   data: AssetFormData,
+  editableFields: AssetFormField[],
 ): Partial<AssetFormData> {
-  const fields = new Set<string>(getAssetFormFields(type));
+  const fields = new Set<string>(editableFields);
   return Object.fromEntries(
     Object.entries(data).filter(([field]) => fields.has(field)),
   );
@@ -201,5 +249,45 @@ export function getEmptyAssetFormValues(): AssetFormValues {
     purchaseDate: "",
     purchaseCost: "",
     notes: "",
+  };
+}
+
+// An existing asset as the form holds it: ids for lists, text for inputs.
+export function toAssetFormValues(asset: AssetDetail): AssetFormValues {
+  const text = (value: string | number | null) =>
+    value === null ? "" : String(value);
+  return {
+    assetTag: text(asset.assetTag),
+    name: text(asset.name),
+    serial: text(asset.serial),
+    modelId: asset.model?.id ?? null,
+    statusId: asset.status.id,
+    companyId: asset.company?.id ?? null,
+    locationId: asset.location?.id ?? null,
+    assignedToId: asset.assignedTo?.id ?? null,
+    imei: text(asset.imei),
+    phoneNumber: text(asset.phoneNumber),
+    operatingSystem: text(asset.operatingSystem),
+    vmHost: text(asset.vmHost),
+    vCpu: text(asset.vCpu),
+    ramGb: text(asset.ramGb),
+    // A date input takes "2026-03-14"; the column is a plain date (UTC midnight).
+    purchaseDate: asset.purchaseDate?.toISOString().slice(0, 10) ?? "",
+    purchaseCost: asset.purchaseCost?.toFixed(2) ?? "",
+    notes: text(asset.notes),
+  };
+}
+
+// The form of a new asset: the suggested tag, the default status and, for
+// types named after their tag, that tag as the name.
+export function getNewAssetFormValues(
+  type: AssetType,
+  { assetTag, statusId }: { assetTag: string; statusId: number | null },
+): AssetFormValues {
+  return {
+    ...getEmptyAssetFormValues(),
+    assetTag,
+    statusId,
+    name: isNamedAfterTag(type) ? assetTag : "",
   };
 }

@@ -1,24 +1,27 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import {
   recordAssetCheckout,
   recordAssetEvent,
 } from "@/lib/assets/asset-events";
 import {
+  getEditableAssetFields,
   pickAssetFormData,
   type AssetFormErrors,
 } from "@/lib/assets/asset-form";
 import { getAssetPath } from "@/lib/assets/asset-types";
-import { findTakenIdentifiers } from "@/lib/assets/queries";
+import {
+  checkTakenIdentifiers,
+  getAssetSaveConflict,
+} from "@/lib/assets/queries";
 import { getCurrentUser } from "@/lib/current-user";
-import { Prisma } from "@/lib/generated/prisma/client";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import {
   assetTypeSchema,
   getAssetFormSchema,
+  getFirstFieldErrors,
   type AssetFormValues,
 } from "@/lib/schemas/asset";
 
@@ -37,36 +40,16 @@ export async function createAsset(
   const assetType = assetTypeSchema.safeParse(type);
   if (!assetType.success) return { message: "Unknown asset type." };
 
-  const input = getAssetFormSchema(assetType.data).safeParse(values);
-  if (!input.success) {
-    // The first problem of each field, as the form shows it.
-    const { fieldErrors } = z.flattenError(input.error);
-    return {
-      fields: Object.fromEntries(
-        Object.entries(fieldErrors).map(([field, messages]) => [
-          field,
-          messages?.[0],
-        ]),
-      ),
-    };
-  }
+  const editable = getEditableAssetFields(assetType.data, "create", "MANUAL");
+  const input = getAssetFormSchema(assetType.data, editable).safeParse(values);
+  if (!input.success) return { fields: getFirstFieldErrors(input.error) };
 
-  const data = pickAssetFormData(assetType.data, input.data);
-  const { statusId } = data;
+  const { statusId, ...data } = pickAssetFormData(input.data, editable);
   // Required for every type, so already checked by the schema.
   if (!statusId) return { fields: { statusId: "Status is required." } };
 
-  const taken = await findTakenIdentifiers(data);
-  if (Object.keys(taken).length > 0) {
-    return {
-      fields: Object.fromEntries(
-        Object.entries(taken).map(([field, owner]) => [
-          field,
-          `Already used by ${owner}.`,
-        ]),
-      ),
-    };
-  }
+  const taken = await checkTakenIdentifiers(data);
+  if (taken) return taken;
 
   let assetId: number;
   try {
@@ -90,21 +73,8 @@ export async function createAsset(
       return asset.id;
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // Someone saved the same tag, serial or IMEI a moment ago.
-      if (error.code === "P2002") {
-        return {
-          message:
-            "Another asset was just saved with the same tag, serial or IMEI. Check them and save again.",
-        };
-      }
-      // A chosen model, status, company, location or person was just removed.
-      if (error.code === "P2003") {
-        return {
-          message: "One of the chosen items no longer exists. Reload the page.",
-        };
-      }
-    }
+    const conflict = getAssetSaveConflict(error);
+    if (conflict) return { message: conflict };
     throw error;
   }
 

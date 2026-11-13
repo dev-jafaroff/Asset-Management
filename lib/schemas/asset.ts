@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   assetFormFieldLabels,
   getRequiredAssetFields,
+  type AssetFormField,
 } from "@/lib/assets/asset-form";
 import { getAssetTypeConfig } from "@/lib/assets/asset-types";
 import { AssetType } from "@/lib/generated/prisma/enums";
@@ -131,9 +132,19 @@ export type AssetFormData = z.output<typeof assetFormSchema>;
 
 // The form schema with the rules of one type: its required fields, and its
 // tag prefix (a PC's tag starts with "PC-"). Used by the form and the action.
-export function getAssetFormSchema(type: AssetType) {
+// Only editable fields get these rules, so a locked value that does not follow
+// them (e.g. an old Snipe-IT tag) never blocks a save.
+export function getAssetFormSchema(
+  type: AssetType,
+  editableFields: AssetFormField[],
+) {
   const { tagPrefix } = getAssetTypeConfig(type);
-  const required = getRequiredAssetFields(type);
+  const editable = new Set(editableFields);
+  const required = getRequiredAssetFields(type).filter((field) =>
+    editable.has(field),
+  );
+  // The prefix the tag must start with, when the tag can be changed.
+  const requiredPrefix = editable.has("assetTag") ? tagPrefix : null;
 
   return assetFormSchema.superRefine((data, ctx) => {
     for (const field of required) {
@@ -145,12 +156,26 @@ export function getAssetFormSchema(type: AssetType) {
         });
       }
     }
-    if (tagPrefix && data.assetTag && !data.assetTag.startsWith(tagPrefix)) {
+    if (
+      requiredPrefix &&
+      data.assetTag &&
+      !data.assetTag.startsWith(requiredPrefix)
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["assetTag"],
-        message: `The tag must start with ${tagPrefix}`,
+        message: `The tag must start with ${requiredPrefix}`,
       });
     }
   });
+}
+
+// The first problem of each field, as a form shows it under the field.
+export function getFirstFieldErrors(error: z.ZodError): Record<string, string> {
+  const errors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const [field] = issue.path;
+    if (typeof field === "string") errors[field] ??= issue.message;
+  }
+  return errors;
 }

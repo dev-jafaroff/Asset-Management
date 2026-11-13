@@ -1,11 +1,33 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { getChangedFields, recordAssetUpdate } from "@/lib/assets/asset-events";
+import { redirect } from "next/navigation";
+import {
+  assetChangeSelect,
+  getAssetChanges,
+  getChangedFields,
+  recordAssetUpdate,
+} from "@/lib/assets/asset-events";
+import {
+  getEditableAssetFields,
+  pickAssetFormData,
+  type AssetFormErrors,
+} from "@/lib/assets/asset-form";
+import { getAssetPath } from "@/lib/assets/asset-types";
+import {
+  checkTakenIdentifiers,
+  getAssetSaveConflict,
+} from "@/lib/assets/queries";
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { assetNotesSchema } from "@/lib/schemas/asset";
+import {
+  assetIdSchema,
+  assetNotesSchema,
+  getAssetFormSchema,
+  getFirstFieldErrors,
+  type AssetFormValues,
+} from "@/lib/schemas/asset";
 
 export type NotesFormState =
   | { status: "idle" }
@@ -67,4 +89,62 @@ export async function updateAssetNotes(
   // Reload the page data, so the notes and the new history entry show up.
   if (outcome === "saved") refresh();
   return { status: "saved" };
+}
+
+// Saves the asset form of an existing asset, writes what changed to its
+// history and opens its page. Returns the errors when it cannot be saved.
+// The holder is not part of it: that is a checkout or checkin.
+export async function updateAsset(
+  assetId: unknown,
+  values: AssetFormValues,
+): Promise<AssetFormErrors> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "asset:edit")) {
+    return { message: "You do not have permission to edit assets." };
+  }
+
+  const id = assetIdSchema.safeParse(assetId);
+  if (!id.success) return { message: "Unknown asset." };
+  const asset = await prisma.asset.findUnique({
+    where: { id: id.data },
+    select: { type: true, source: true },
+  });
+  if (!asset) return { message: "This asset no longer exists." };
+
+  // Which fields can change depends on the asset, e.g. Intune owns a PC's name.
+  const editable = getEditableAssetFields(asset.type, "edit", asset.source);
+  const input = getAssetFormSchema(asset.type, editable).safeParse(values);
+  if (!input.success) return { fields: getFirstFieldErrors(input.error) };
+
+  const { statusId, ...data } = pickAssetFormData(input.data, editable);
+  // Required for every type, so already checked by the schema.
+  if (!statusId) return { fields: { statusId: "Status is required." } };
+
+  const taken = await checkTakenIdentifiers(data, id.data);
+  if (taken) return taken;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.asset.findUniqueOrThrow({
+        where: { id: id.data },
+        select: assetChangeSelect,
+      });
+      const after = await tx.asset.update({
+        where: { id: id.data },
+        data: { ...data, statusId },
+        select: assetChangeSelect,
+      });
+      await recordAssetUpdate(tx, {
+        assetId: id.data,
+        actorId: user.id,
+        changes: getAssetChanges(before, after, editable),
+      });
+    });
+  } catch (error) {
+    const conflict = getAssetSaveConflict(error);
+    if (conflict) return { message: conflict };
+    throw error;
+  }
+
+  redirect(getAssetPath(asset.type, id.data));
 }

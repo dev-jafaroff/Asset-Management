@@ -101,6 +101,11 @@ export function getAssetPath(type: AssetType, id: number): string {
   return `${getAssetTypePath(getAssetTypeConfig(type).slug)}/${id}`;
 }
 
+// Edit form of one asset, e.g. "/assets/pcs/7/edit".
+export function getEditAssetPath(type: AssetType, id: number): string {
+  return `${getAssetPath(type, id)}/edit`;
+}
+
 const TAG_SEQUENCE_DIGITS = 5;
 
 // formatAssetTag("PC-", 7) → "PC-00007"

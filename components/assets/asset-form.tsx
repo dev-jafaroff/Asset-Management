@@ -2,7 +2,14 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useId, useMemo, useState, useTransition, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { Controller, useForm, type Control } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,12 +51,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   assetFormFieldLabels,
-  getAssetFormFields,
   getAssetFormSections,
+  getEditableAssetFields,
+  getLockedAssetFields,
   getRequiredAssetFields,
   isAssetListField,
+  isNamedAfterTag,
   type AssetFormErrors,
   type AssetFormField,
+  type AssetFormMode,
   type AssetListField,
   type AssetTextField,
 } from "@/lib/assets/asset-form";
@@ -57,7 +67,7 @@ import type {
   AssetFormOptions,
   FormOption,
 } from "@/lib/assets/asset-form-options";
-import type { AssetType } from "@/lib/generated/prisma/enums";
+import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
 import {
   ASSET_NOTES_MAX_LENGTH,
   getAssetFormSchema,
@@ -136,6 +146,9 @@ const listFieldSpecs: Record<AssetListField, ListFieldSpec> = {
 
 type AssetFormProps = {
   type: AssetType;
+  mode: AssetFormMode;
+  // Where the record came from; Intune owns some fields of synced devices.
+  source: AssetSource;
   options: AssetFormOptions;
   defaultValues: AssetFormValues;
   // Saves the values; returns the errors, or opens the asset when it is saved.
@@ -149,22 +162,56 @@ type AssetFormProps = {
 // everything again and its errors appear under the same fields.
 export function AssetForm({
   type,
+  mode,
+  source,
   options,
   defaultValues,
   action,
   submitLabel,
   cancelHref,
 }: AssetFormProps) {
-  const schema = useMemo(() => getAssetFormSchema(type), [type]);
+  const editable = useMemo(
+    () => getEditableAssetFields(type, mode, source),
+    [type, mode, source],
+  );
+  const schema = useMemo(
+    () => getAssetFormSchema(type, editable),
+    [type, editable],
+  );
+  const locked = getLockedAssetFields(mode, source);
+  // A new asset named after its tag keeps following the tag, until the name
+  // is changed by hand.
+  const nameFollowsTag = mode === "create" && isNamedAfterTag(type);
+  const hints: Partial<Record<AssetFormField, string>> = nameFollowsTag
+    ? {
+        name: "Same as the tag. Change it only for a differently named device.",
+      }
+    : {};
+
   const form = useForm<AssetFormValues, unknown, AssetFormData>({
     resolver: zodResolver(schema),
     defaultValues,
     // Check a field once it is left, then again on every change.
     mode: "onTouched",
   });
+
+  useEffect(() => {
+    if (!nameFollowsTag) return;
+    // Returns the unsubscribe, which the effect runs on cleanup.
+    return form.subscribe({
+      name: "assetTag",
+      formState: { values: true },
+      callback: ({ values }) => {
+        if (form.getFieldState("name").isDirty) return;
+        form.setValue("name", values.assetTag.trim().toUpperCase());
+      },
+    });
+  }, [form, nameFollowsTag]);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, startSaving] = useTransition();
-  const required = new Set(getRequiredAssetFields(type));
+  const required = new Set(
+    getRequiredAssetFields(type).filter((field) => editable.includes(field)),
+  );
 
   function save() {
     setFormError(null);
@@ -172,9 +219,7 @@ export function AssetForm({
       const errors = await action(form.getValues());
       setFormError(errors.message ?? null);
       // Server errors go under their fields; the first one gets the focus.
-      const failed = getAssetFormFields(type).filter(
-        (field) => errors.fields?.[field],
-      );
+      const failed = editable.filter((field) => errors.fields?.[field]);
       failed.forEach((field, index) => {
         form.setError(
           field,
@@ -191,7 +236,7 @@ export function AssetForm({
       noValidate
       className="flex flex-col gap-4"
     >
-      {getAssetFormSections(type).map((section) => (
+      {getAssetFormSections(type, mode).map((section) => (
         <Card key={section.title}>
           <CardHeader>
             <CardTitle>{section.title}</CardTitle>
@@ -207,6 +252,8 @@ export function AssetForm({
                 control={form.control}
                 options={options}
                 required={required.has(field)}
+                lockedReason={locked[field]}
+                hint={hints[field]}
                 // A lone field named like its card (Notes) keeps its label for screen readers only.
                 hideLabel={
                   section.fields.length === 1 &&
@@ -247,13 +294,28 @@ type FieldControlProps = {
   options: AssetFormOptions;
   required: boolean;
   hideLabel: boolean;
+  // Set when the field is shown but cannot be changed (e.g. owned by Intune).
+  lockedReason?: string;
+  // Replaces the field's usual hint, e.g. why the name matches the tag.
+  hint?: string;
 };
 
-function AssetFormFieldControl({ field, ...props }: FieldControlProps) {
+// Only text fields are ever locked (tag, Intune-owned name, serial and OS).
+function AssetFormFieldControl({
+  field,
+  lockedReason,
+  hint,
+  ...props
+}: FieldControlProps) {
   return isAssetListField(field) ? (
     <ListField name={field} {...props} />
   ) : (
-    <TextField name={field} {...props} />
+    <TextField
+      name={field}
+      lockedReason={lockedReason}
+      hint={hint}
+      {...props}
+    />
   );
 }
 
@@ -306,7 +368,14 @@ type TextFieldProps = Omit<FieldControlProps, "field" | "options"> & {
   name: AssetTextField;
 };
 
-function TextField({ name, control, required, hideLabel }: TextFieldProps) {
+function TextField({
+  name,
+  control,
+  required,
+  hideLabel,
+  lockedReason,
+  hint,
+}: TextFieldProps) {
   const id = useId();
   const spec = textFieldSpecs[name];
 
@@ -320,6 +389,8 @@ function TextField({ name, control, required, hideLabel }: TextFieldProps) {
           id,
           required,
           placeholder: spec.placeholder,
+          // Read-only rather than disabled, so the value is still sent and checked.
+          readOnly: Boolean(lockedReason),
           "aria-invalid": fieldState.invalid || undefined,
           "aria-describedby": fieldState.error ? `${id}-error` : undefined,
         };
@@ -328,7 +399,7 @@ function TextField({ name, control, required, hideLabel }: TextFieldProps) {
             id={id}
             label={assetFormFieldLabels[name]}
             required={required}
-            description={spec.description}
+            description={lockedReason ?? hint ?? spec.description}
             error={fieldState.error?.message}
             wide={spec.multiline}
             hideLabel={hideLabel}
@@ -355,7 +426,10 @@ function TextField({ name, control, required, hideLabel }: TextFieldProps) {
                 {...inputProps}
                 type={spec.type ?? "text"}
                 inputMode={spec.inputMode}
-                className={cn(spec.mono && "font-mono")}
+                className={cn(
+                  spec.mono && "font-mono",
+                  lockedReason && "bg-muted text-muted-foreground",
+                )}
               />
             )}
           </FieldShell>
@@ -365,7 +439,10 @@ function TextField({ name, control, required, hideLabel }: TextFieldProps) {
   );
 }
 
-type ListFieldProps = Omit<FieldControlProps, "field"> & {
+type ListFieldProps = Omit<
+  FieldControlProps,
+  "field" | "lockedReason" | "hint"
+> & {
   name: AssetListField;
 };
 

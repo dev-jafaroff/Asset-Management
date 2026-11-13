@@ -1,9 +1,85 @@
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetEventType } from "@/lib/generated/prisma/enums";
-import type { FieldChange } from "@/lib/assets/asset-detail";
-import { assetFormFieldLabels, holderFields } from "@/lib/assets/asset-form";
+import { formatCost, type FieldChange } from "@/lib/assets/asset-detail";
+import {
+  assetFormFieldLabels,
+  holderFields,
+  type AssetFormField,
+} from "@/lib/assets/asset-form";
 import { getAssetTypeConfig } from "@/lib/assets/asset-types";
-import { getAssetHolder, type AssetAssignment } from "@/lib/assets/format";
+import {
+  formatModelName,
+  getAssetHolder,
+  type AssetAssignment,
+} from "@/lib/assets/format";
+import { formatDate } from "@/lib/utils";
+
+// ─── Changes ─────────────────────────────────────────────────────────────────
+
+// What an edit compares, read before and after the save.
+export const assetChangeSelect = {
+  assetTag: true,
+  name: true,
+  serial: true,
+  imei: true,
+  phoneNumber: true,
+  operatingSystem: true,
+  vmHost: true,
+  vCpu: true,
+  ramGb: true,
+  purchaseDate: true,
+  purchaseCost: true,
+  notes: true,
+  model: { select: { name: true, manufacturer: true } },
+  status: { select: { name: true } },
+  company: { select: { name: true } },
+  location: { select: { name: true } },
+  assignedTo: { select: { displayName: true } },
+} satisfies Prisma.AssetSelect;
+
+type AssetChangeFields = Prisma.AssetGetPayload<{
+  select: typeof assetChangeSelect;
+}>;
+
+// Each form field as history shows it: names instead of ids, formatted
+// dates and amounts. Saved as text, so history stays true after a rename.
+const historyValues: Record<
+  AssetFormField,
+  (asset: AssetChangeFields) => string | null
+> = {
+  assetTag: (asset) => asset.assetTag,
+  name: (asset) => asset.name,
+  serial: (asset) => asset.serial,
+  modelId: (asset) => formatModelName(asset.model),
+  statusId: (asset) => asset.status.name,
+  companyId: (asset) => asset.company?.name ?? null,
+  locationId: (asset) => asset.location?.name ?? null,
+  assignedToId: (asset) => asset.assignedTo?.displayName ?? null,
+  imei: (asset) => asset.imei,
+  phoneNumber: (asset) => asset.phoneNumber,
+  operatingSystem: (asset) => asset.operatingSystem,
+  vmHost: (asset) => asset.vmHost,
+  vCpu: (asset) => asset.vCpu?.toString() ?? null,
+  ramGb: (asset) => asset.ramGb?.toString() ?? null,
+  purchaseDate: (asset) => asset.purchaseDate && formatDate(asset.purchaseDate),
+  purchaseCost: (asset) => asset.purchaseCost && formatCost(asset.purchaseCost),
+  notes: (asset) => asset.notes,
+};
+
+// The fields an edit really changed, e.g. "Location: Baku office → Server room".
+export function getAssetChanges(
+  before: AssetChangeFields,
+  after: AssetChangeFields,
+  fields: AssetFormField[],
+): FieldChange[] {
+  return getChangedFields(
+    fields.map((field) => ({
+      field: assetFormFieldLabels[field],
+      from: historyValues[field](before),
+      to: historyValues[field](after),
+    })),
+  );
+}
 
 // Only the fields whose value really changed.
 export function getChangedFields(fields: FieldChange[]): FieldChange[] {

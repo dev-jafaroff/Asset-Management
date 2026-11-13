@@ -187,3 +187,32 @@ export async function findTakenIdentifiers(
   }
   return taken;
 }
+
+// Errors for identifiers another asset already uses, shown under each field;
+// null when all are free.
+export async function checkTakenIdentifiers(
+  values: UniqueAssetFields,
+  exceptId?: number,
+): Promise<{ fields: Record<string, string> } | null> {
+  const taken = await findTakenIdentifiers(values, exceptId);
+  const entries = Object.entries(taken);
+  if (entries.length === 0) return null;
+  return {
+    fields: Object.fromEntries(
+      entries.map(([field, owner]) => [field, `Already used by ${owner}.`]),
+    ),
+  };
+}
+
+// Why the database refused a save that passed every check, e.g. because
+// someone saved the same serial a moment earlier. Null for other errors.
+export function getAssetSaveConflict(error: unknown): string | null {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return null;
+  if (error.code === "P2002") {
+    return "Another asset was just saved with the same tag, serial or IMEI. Check them and save again.";
+  }
+  if (error.code === "P2003") {
+    return "One of the chosen items no longer exists. Reload the page.";
+  }
+  return null;
+}
