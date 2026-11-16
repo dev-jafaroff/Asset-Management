@@ -1,16 +1,10 @@
 import { StatusTabs } from "@/components/assets/status-tabs";
-import {
-  getPageCount,
-  ListPagination,
-} from "@/components/shared/list-pagination";
 import { ListSearch } from "@/components/shared/list-search";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserTable } from "@/components/users/user-table";
 import {
   buildHref,
-  getPageParam,
   getParam,
-  PAGE_PARAM,
   SEARCH_PARAM,
   type SearchParams,
 } from "@/lib/search-params";
@@ -20,7 +14,6 @@ import {
   listUsers,
   listUserTabsWithCounts,
   toUserTabParam,
-  USER_PAGE_SIZE,
   USER_TAB_PARAM,
   USERS_PATH,
 } from "@/lib/users/queries";
@@ -37,11 +30,7 @@ export async function UserList({
   // Tab counts follow the search, so they show where the matches are.
   const tabs = await listUserTabsWithCounts(search);
   const activeTab = findUserTab(tabs, getParam(params, USER_TAB_PARAM));
-  const total = activeTab.count;
-  const pageCount = getPageCount(total, USER_PAGE_SIZE);
-  // A page past the end (e.g. after a search narrowed the list) shows the last page.
-  const page = Math.min(getPageParam(params), pageCount);
-  const users = await listUsers({ tab: activeTab, search }, page);
+  const users = await listUsers({ tab: activeTab, search });
 
   return (
     <div className="flex flex-col gap-4">
@@ -60,7 +49,6 @@ export async function UserList({
           count: tab.count,
           href: buildHref(USERS_PATH, params, {
             [USER_TAB_PARAM]: toUserTabParam(tab.slug),
-            [PAGE_PARAM]: undefined,
           }),
         }))}
       />
@@ -70,22 +58,12 @@ export async function UserList({
           {search ? `No people match “${search}”.` : "No people here."}
         </p>
       ) : (
-        <>
-          <UserTable
-            users={users.map((user) => ({
-              ...user,
-              href: getUserPath(user.id),
-            }))}
-          />
-          <ListPagination
-            page={page}
-            pageCount={pageCount}
-            pageSize={USER_PAGE_SIZE}
-            total={total}
-            pathname={USERS_PATH}
-            params={params}
-          />
-        </>
+        <UserTable
+          users={users.map((user) => ({
+            ...user,
+            href: getUserPath(user.id),
+          }))}
+        />
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type SubmitEvent } from "react";
 import { SearchInput } from "@/components/shared/search-input";
 import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
-import { buildHref, PAGE_PARAM, SEARCH_PARAM } from "@/lib/search-params";
+import { buildHref, SEARCH_PARAM } from "@/lib/search-params";
 import { cn } from "@/lib/utils";
 
 // Long enough to skip the keys of a word being typed, short enough to feel instant.
@@ -51,7 +51,6 @@ export function ListSearch({ label, placeholder, className }: ListSearchProps) {
       router.replace(
         buildHref(pathname, Object.fromEntries(searchParams), {
           [SEARCH_PARAM]: query || undefined,
-          [PAGE_PARAM]: undefined,
         }),
         { scroll: false },
       );

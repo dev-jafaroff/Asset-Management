@@ -2,10 +2,6 @@ import { AssetFilters } from "@/components/assets/asset-filters";
 import { AssetTable } from "@/components/assets/asset-table";
 import { ColumnMenu } from "@/components/assets/column-menu";
 import { StatusTabs } from "@/components/assets/status-tabs";
-import {
-  getPageCount,
-  ListPagination,
-} from "@/components/shared/list-pagination";
 import { ListSearch } from "@/components/shared/list-search";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseAssetFilters } from "@/lib/assets/asset-filters";
@@ -14,11 +10,7 @@ import {
   type BulkActionOptions,
 } from "@/lib/assets/asset-form-options";
 import { assignTargets, getAssetTypeConfig } from "@/lib/assets/asset-types";
-import {
-  ASSET_PAGE_SIZE,
-  listAssets,
-  listStatusTabsWithCounts,
-} from "@/lib/assets/queries";
+import { listAssets, listStatusTabsWithCounts } from "@/lib/assets/queries";
 import {
   findStatusTab,
   STATUS_PARAM,
@@ -29,9 +21,7 @@ import type { AssetType } from "@/lib/generated/prisma/enums";
 import { can } from "@/lib/permissions";
 import {
   buildHref,
-  getPageParam,
   getParam,
-  PAGE_PARAM,
   SEARCH_PARAM,
   type SearchParams,
 } from "@/lib/search-params";
@@ -76,13 +66,9 @@ export async function AssetList({
   // Tab counts follow the search and filters, so they show where the matches are.
   const tabs = await listStatusTabsWithCounts({ type, search, filters });
   const activeTab = findStatusTab(tabs, getParam(params, STATUS_PARAM));
-  const total = activeTab.count;
-  const pageCount = getPageCount(total, ASSET_PAGE_SIZE);
-  // A page past the end (e.g. after a search narrowed the list) shows the last page.
-  const page = Math.min(getPageParam(params), pageCount);
 
   const [assets, bulkOptions] = await Promise.all([
-    listAssets({ type, search, filters, status: activeTab.where }, page),
+    listAssets({ type, search, filters, status: activeTab.where }),
     loadBulkOptions(type),
   ]);
 
@@ -112,7 +98,6 @@ export async function AssetList({
           count: tab.count,
           href: buildHref(basePath, params, {
             [STATUS_PARAM]: toStatusParam(tab.slug),
-            [PAGE_PARAM]: undefined,
           }),
         }))}
       />
@@ -122,17 +107,7 @@ export async function AssetList({
           {getEmptyMessage(search, Object.keys(filters).length > 0)}
         </p>
       ) : (
-        <>
-          <AssetTable assets={assets} type={type} bulkOptions={bulkOptions} />
-          <ListPagination
-            page={page}
-            pageCount={pageCount}
-            pageSize={ASSET_PAGE_SIZE}
-            total={total}
-            pathname={basePath}
-            params={params}
-          />
-        </>
+        <AssetTable assets={assets} type={type} bulkOptions={bulkOptions} />
       )}
     </div>
   );

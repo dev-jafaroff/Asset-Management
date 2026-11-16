@@ -1,10 +1,9 @@
-// Helpers for URL params: record ids and list state (search, filters, page).
+// Helpers for URL params: record ids and list state (search, filters, tab).
 // List state lives in the URL, so a filtered view can be shared and Back works.
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
 export const SEARCH_PARAM = "q";
-export const PAGE_PARAM = "page";
 
 // Returns a single trimmed value; empty or repeated params count as missing.
 export function getParam(
@@ -24,11 +23,6 @@ export function getPositiveIntParam(
 ): number | undefined {
   const value = Number(getParam(params, key));
   return Number.isInteger(value) && value > 0 ? value : undefined;
-}
-
-// 1-based page number; anything invalid falls back to the first page.
-export function getPageParam(params: SearchParams): number {
-  return getPositiveIntParam(params, PAGE_PARAM) ?? 1;
 }
 
 // One choice in a filter dropdown; the value is what goes in the URL.

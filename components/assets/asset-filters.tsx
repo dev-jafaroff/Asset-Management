@@ -8,7 +8,6 @@ import {
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import {
   buildHref,
-  PAGE_PARAM,
   type ParamUpdates,
   type SearchParams,
 } from "@/lib/search-params";
@@ -21,10 +20,9 @@ type AssetFiltersProps = {
 };
 
 // Removes every filter but keeps the search and the status tab.
-const clearFilters: ParamUpdates = Object.fromEntries([
-  ...assetFilters.map((filter) => [filter.param, undefined]),
-  [PAGE_PARAM, undefined],
-]);
+const clearFilters: ParamUpdates = Object.fromEntries(
+  assetFilters.map((filter) => [filter.param, undefined]),
+);
 
 export async function AssetFilters({
   type,

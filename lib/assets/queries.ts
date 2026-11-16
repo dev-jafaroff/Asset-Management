@@ -42,8 +42,6 @@ export type AssetListItem = Prisma.AssetGetPayload<{
   select: typeof assetListSelect;
 }>;
 
-export const ASSET_PAGE_SIZE = 25;
-
 export type AssetListFilter = {
   type?: AssetType;
   // Condition of the selected status tab (see lib/assets/status-filters.ts).
@@ -116,17 +114,15 @@ export async function listStatusTabsWithCounts(
   return tabs.map((tab, index) => ({ ...tab, count: counts[index] }));
 }
 
-// `page` is 1-based.
+// Every matching asset: lists show them all on one page, so a selection can
+// take any of them (e.g. two PCs far apart in the list, checked out at once).
 export async function listAssets(
   filter: AssetListFilter = {},
-  page = 1,
 ): Promise<AssetListItem[]> {
   return prisma.asset.findMany({
     where: buildWhere(filter),
     select: assetListSelect,
     orderBy: [{ assetTag: "asc" }, { id: "asc" }],
-    skip: (page - 1) * ASSET_PAGE_SIZE,
-    take: ASSET_PAGE_SIZE,
   });
 }
 
