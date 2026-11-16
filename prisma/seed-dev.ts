@@ -402,7 +402,13 @@ async function createAccessories(tx: Tx, userIds: number[]) {
 
   for (const { name, category, totalQuantity } of accessories) {
     const accessory = await tx.accessory.create({
-      data: { name, totalQuantity, categoryId: idByName(categories, category) },
+      data: {
+        name,
+        totalQuantity,
+        categoryId: idByName(categories, category),
+        // The stock history starts with the first total.
+        stockChanges: { create: { toQuantity: totalQuantity } },
+      },
     });
 
     const assignmentCount = faker.number.int({ min: 0, max: 6 });

@@ -12,14 +12,15 @@ const statuses: { name: string; type: StatusType; color: string }[] = [
 
 const companies = ["DRL", "eiLink", "EIG", "Waverity"];
 
+// Icons are keys of components/assets/asset-icons.tsx.
 const accessoryCategories = [
-  "Keyboard",
-  "Mouse",
-  "Headset",
-  "Docking station",
-  "Adapter / Cable",
-  "Webcam",
-  "Charger",
+  { name: "Keyboard", icon: "keyboard" },
+  { name: "Mouse", icon: "mouse" },
+  { name: "Headset", icon: "headset" },
+  { name: "Docking station", icon: "dock" },
+  { name: "Adapter / Cable", icon: "cable" },
+  { name: "Webcam", icon: "webcam" },
+  { name: "Charger", icon: "charger" },
 ];
 
 async function seedStatuses() {
@@ -43,11 +44,11 @@ async function seedCompanies() {
 }
 
 async function seedCategories() {
-  for (const name of accessoryCategories) {
+  for (const category of accessoryCategories) {
     await prisma.category.upsert({
-      where: { name },
+      where: { name: category.name },
       update: {},
-      create: { name },
+      create: category,
     });
   }
 }

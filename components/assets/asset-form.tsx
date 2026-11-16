@@ -302,19 +302,20 @@ function AssetFormFieldControl({
   );
 }
 
-type FieldShellProps = {
+export type FieldShellProps = {
   id: string;
   label: string;
   required: boolean;
   description?: string;
   error?: string;
   wide?: boolean;
-  hideLabel: boolean;
+  hideLabel?: boolean;
   children: ReactNode;
 };
 
-// Label, control, then the error (or the hint while there is none).
-function FieldShell({
+// Label, control, then the error (or the hint while there is none). Shared
+// by the forms of assets and accessories.
+export function FieldShell({
   id,
   label,
   required,

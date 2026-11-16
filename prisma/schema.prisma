@@ -54,6 +54,9 @@ enum AssetEventType {
 model Category {
   id          Int          @id @default(autoincrement())
   name        String       @unique
+  // Icon of an accessory category, a key of the registry in
+  // components/assets/asset-icons.tsx, e.g. "keyboard".
+  icon        String?
   models      AssetModel[]
   accessories Accessory[]
   createdAt   DateTime     @default(now())
@@ -111,11 +114,13 @@ model User {
   role          Role    @default(VIEWER)
   isActive      Boolean @default(true)
 
-  assignedAssets      Asset[]               @relation("AssetAssignedTo")
-  accessories         AccessoryAssignment[] @relation("AccessoryAssignedTo")
-  accessoriesAssigned AccessoryAssignment[] @relation("AccessoryAssignedBy")
-  eventsPerformed     AssetEvent[]          @relation("EventActor")
-  eventsReceived      AssetEvent[]          @relation("EventTargetUser")
+  assignedAssets        Asset[]                @relation("AssetAssignedTo")
+  accessories           AccessoryAssignment[]  @relation("AccessoryAssignedTo")
+  accessoriesAssigned   AccessoryAssignment[]  @relation("AccessoryAssignedBy")
+  accessoriesReturned   AccessoryAssignment[]  @relation("AccessoryReturnedBy")
+  accessoryStockChanges AccessoryStockChange[]
+  eventsPerformed       AssetEvent[]           @relation("EventActor")
+  eventsReceived        AssetEvent[]           @relation("EventTargetUser")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -195,14 +200,15 @@ model AssetEvent {
 // ─── Accessories ─────────────────────────────────────────────────────────────
 
 model Accessory {
-  id            Int                   @id @default(autoincrement())
-  name          String                @unique
+  id            Int                    @id @default(autoincrement())
+  name          String                 @unique
   categoryId    Int
-  category      Category              @relation(fields: [categoryId], references: [id])
-  totalQuantity Int                   @default(0)
+  category      Category               @relation(fields: [categoryId], references: [id])
+  totalQuantity Int                    @default(0)
   assignments   AccessoryAssignment[]
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  stockChanges  AccessoryStockChange[]
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 }
 
 model AccessoryAssignment {
@@ -216,9 +222,29 @@ model AccessoryAssignment {
   returnedAt   DateTime?
   assignedById Int?
   assignedBy   User?     @relation("AccessoryAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+  returnedById Int?
+  returnedBy   User?     @relation("AccessoryReturnedBy", fields: [returnedById], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([accessoryId, returnedAt])
+}
+
+// Every change of an accessory's total quantity, e.g. 30 → 40 when more were
+// bought. Assignments and returns are their own history (AccessoryAssignment).
+model AccessoryStockChange {
+  id           Int       @id @default(autoincrement())
+  accessoryId  Int
+  accessory    Accessory @relation(fields: [accessoryId], references: [id])
+  // Null until sign-in exists (see lib/current-user.ts).
+  actorId      Int?
+  actor        User?     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  // Null when the accessory was added.
+  fromQuantity Int?
+  toQuantity   Int
+  note         String?
+  createdAt    DateTime  @default(now())
+
+  @@index([accessoryId, createdAt])
 }
 
 // ─── Intune sync ─────────────────────────────────────────────────────────────

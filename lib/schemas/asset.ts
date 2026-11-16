@@ -184,10 +184,11 @@ export function getFirstFieldErrors(error: z.ZodError): Record<string, string> {
 
 export const ASSET_EVENT_NOTE_MAX_LENGTH = 500;
 
-const eventNoteSchema = optionalText(ASSET_EVENT_NOTE_MAX_LENGTH);
+// A note for the history, e.g. with a checkout or a stock change.
+export const eventNoteSchema = optionalText(ASSET_EVENT_NOTE_MAX_LENGTH);
 
 // An id chosen from a list that starts empty (null) and must be filled in.
-function requiredChoice(message: string) {
+export function requiredChoice(message: string) {
   return optionalId.transform((id, ctx) => {
     if (id !== null) return id;
     ctx.addIssue({ code: "custom", message });

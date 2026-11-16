@@ -1,12 +1,20 @@
 import {
   ArrowDownToLine,
+  Cable,
   Cctv,
+  Dock,
+  Headset,
+  Keyboard,
   Laptop,
   Monitor,
+  Mouse,
+  Package,
+  PlugZap,
   Printer,
   Server,
   Shapes,
   Smartphone,
+  Webcam,
   Wifi,
   createLucideIcon,
   type LucideIcon,
@@ -30,6 +38,23 @@ export const assetTypeIcons: Record<AssetType, LucideIcon> = {
   CAMERA: Cctv,
   OTHER: Shapes,
 };
+
+// Accessory categories pick their icon by key (Category.icon), since
+// categories live in the database and can be renamed.
+const accessoryIcons: Partial<Record<string, LucideIcon>> = {
+  keyboard: Keyboard,
+  mouse: Mouse,
+  headset: Headset,
+  dock: Dock,
+  cable: Cable,
+  webcam: Webcam,
+  charger: PlugZap,
+};
+
+// A category without a known key gets a plain box.
+function getAccessoryIcon(key: string | null): LucideIcon {
+  return (key === null ? undefined : accessoryIcons[key]) ?? Package;
+}
 
 // Rounder cloud than lucide's, as in the design mockups.
 const SourceCloud = createLucideIcon("SourceCloud", [
@@ -83,4 +108,14 @@ type AssetTypeIconProps = {
 
 export function AssetTypeIcon({ type, size }: AssetTypeIconProps) {
   return <IconTile icon={assetTypeIcons[type]} size={size} />;
+}
+
+type AccessoryIconProps = {
+  // The category's icon key, e.g. "keyboard".
+  iconKey: string | null;
+  size?: IconTileSize;
+};
+
+export function AccessoryIcon({ iconKey, size }: AccessoryIconProps) {
+  return <IconTile icon={getAccessoryIcon(iconKey)} size={size} />;
 }

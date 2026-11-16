@@ -56,7 +56,8 @@ const eventStyles: Record<AssetEventType, EventStyle> = {
 };
 
 // The card around a history list; the count shows once it is loaded.
-function HistoryCard({
+// Also used by the accessory page.
+export function HistoryCard({
   title = "History",
   count,
   children,
@@ -107,14 +108,31 @@ type HistoryEntryProps<Event extends AssetHistoryEvent> = {
   subject: HistorySubject<Event>;
 };
 
-function HistoryEntry<Event extends AssetHistoryEvent>({
-  event,
-  isLast,
-  subject,
-}: HistoryEntryProps<Event>) {
-  const style = eventStyles[event.type];
-  const about = subject(event, style);
+type TimelineItemProps = {
+  icon: LucideIcon;
+  // Colors of the icon tile; empty keeps the muted default.
+  tone?: string;
+  // What happened, e.g. "Checked out PC-00016 to Aysel Huseynova".
+  title: ReactNode;
+  actor: { displayName: string } | null;
+  date: Date;
+  changes?: FieldChange[];
+  note?: string | null;
+  isLast: boolean;
+};
 
+// One entry of a history timeline: icon, what happened, who and when, then
+// the changed fields and the note. Shared by asset and accessory history.
+export function TimelineItem({
+  icon,
+  tone,
+  title,
+  actor,
+  date,
+  changes = [],
+  note,
+  isLast,
+}: TimelineItemProps) {
   return (
     <li className="relative flex gap-3 pb-5 last:pb-0">
       {/* Line joining this event to the next (older) one. */}
@@ -124,24 +142,48 @@ function HistoryEntry<Event extends AssetHistoryEvent>({
           className="absolute top-8.5 bottom-1 left-3.75 w-px bg-border"
         />
       )}
-      <IconTile icon={style.icon} size="md" className={style.tone} />
+      <IconTile icon={icon} size="md" className={tone} />
       <div className="min-w-0 flex-1 pt-1">
-        <p>
-          <span className="font-medium">{style.label}</span>
-          {about && <> {about}</>}
-        </p>
+        <p>{title}</p>
         <p className="text-xs text-muted-foreground">
-          {event.actor && `by ${event.actor.displayName} · `}
-          <DateTime date={event.createdAt} />
+          {actor && `by ${actor.displayName} · `}
+          <DateTime date={date} />
         </p>
-        {event.changes.length > 0 && <ChangeList changes={event.changes} />}
-        {event.note && (
+        {changes.length > 0 && <ChangeList changes={changes} />}
+        {note && (
           <p className="mt-1.5 text-xs whitespace-pre-wrap text-muted-foreground italic">
-            “{event.note}”
+            “{note}”
           </p>
         )}
       </div>
     </li>
+  );
+}
+
+function HistoryEntry<Event extends AssetHistoryEvent>({
+  event,
+  isLast,
+  subject,
+}: HistoryEntryProps<Event>) {
+  const style = eventStyles[event.type];
+  const about = subject(event, style);
+
+  return (
+    <TimelineItem
+      icon={style.icon}
+      tone={style.tone}
+      title={
+        <>
+          <span className="font-medium">{style.label}</span>
+          {about && <> {about}</>}
+        </>
+      }
+      actor={event.actor}
+      date={event.createdAt}
+      changes={event.changes}
+      note={event.note}
+      isLast={isLast}
+    />
   );
 }
 
