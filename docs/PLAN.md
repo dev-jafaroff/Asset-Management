@@ -174,7 +174,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 - [x] Asset list: table per type, status tabs, search, pagination, sidebar "By status"
 - [x] Type icons in tables and sidebar from one icon registry
-- [ ] Asset list filters (company, location, model)
+- [x] Asset list filters (company, location, model)
 - [x] Bulk actions on selected assets: check out, check in, change status (print labels: Phase 5)
 - [ ] Asset detail page and history timeline
 - [x] Create and edit form per type (Intune fields read-only, phone number for phones, company for VMs)

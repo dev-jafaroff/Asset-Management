@@ -11,7 +11,6 @@ import { prisma } from "@/lib/prisma";
 import { getPositiveIntParam } from "@/lib/search-params";
 
 export const USERS_PATH = "/users";
-export const USER_PAGE_SIZE = 25;
 
 // e.g. "/users/12"
 export function getUserPath(id: number): string {
@@ -94,17 +93,15 @@ export function toUserTabParam(slug: string): string | undefined {
   return slug === userTabs[0].slug ? undefined : slug;
 }
 
-// `page` is 1-based.
-export async function listUsers(
-  filter: { tab: UserTab; search?: string },
-  page: number,
-): Promise<UserListItem[]> {
+// Every matching person, on one page like the asset lists.
+export async function listUsers(filter: {
+  tab: UserTab;
+  search?: string;
+}): Promise<UserListItem[]> {
   return prisma.user.findMany({
     where: { AND: [filter.tab.where, buildUserSearchWhere(filter.search)] },
     select: userListSelect,
     orderBy: [{ displayName: "asc" }, { id: "asc" }],
-    skip: (page - 1) * USER_PAGE_SIZE,
-    take: USER_PAGE_SIZE,
   });
 }
 

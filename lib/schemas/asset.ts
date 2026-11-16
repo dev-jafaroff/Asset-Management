@@ -217,8 +217,9 @@ export type StatusChangeValues = z.input<typeof statusChangeSchema>;
 
 // ─── Bulk actions ────────────────────────────────────────────────────────────
 
-// More than a list page holds, so a full page always fits.
-export const BULK_ASSET_LIMIT = 100;
+// Lists show every asset on one page, so "select all" can take a whole list;
+// each asset is still checked and saved on its own.
+export const BULK_ASSET_LIMIT = 1000;
 
 // The selected assets of a list; repeated ids count once.
 export const assetIdsSchema = z

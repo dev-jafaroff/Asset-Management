@@ -2,12 +2,10 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
-import { PAGE_PARAM } from "@/lib/search-params";
 
 // Remembers the last search, status tab and filters of each list page for the
 // browser tab (sessionStorage), so leaving a list and coming back through the
-// sidebar restores it. The page number is not kept: a list reopens on page 1.
-// A list can also leave out other params (see forgetParams in nav-items.ts).
+// sidebar restores it. A list can leave out some params (see forgetParams in nav-items.ts).
 
 const STORAGE_PREFIX = "list-state:";
 const listeners = new Set<() => void>();
@@ -41,7 +39,7 @@ function subscribe(listener: () => void) {
 
 export type RememberedList = {
   path: string;
-  // Params not kept, on top of the page number.
+  // Params not kept.
   forget: readonly string[];
 };
 
@@ -55,7 +53,7 @@ function useRecordListState(lists: readonly RememberedList[]) {
     const list = lists.find((entry) => entry.path === pathname);
     if (!list) return;
     const query = new URLSearchParams(searchParams);
-    for (const param of [PAGE_PARAM, ...list.forget]) query.delete(param);
+    for (const param of list.forget) query.delete(param);
     writeQuery(pathname, query.toString());
   }, [lists, pathname, searchParams]);
 }

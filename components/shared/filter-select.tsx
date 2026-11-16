@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { buildHref, PAGE_PARAM, type FilterOption } from "@/lib/search-params";
+import { buildHref, type FilterOption } from "@/lib/search-params";
 
 type FilterSelectProps = {
   // URL param the dropdown controls, e.g. "company".
@@ -41,7 +41,6 @@ export function FilterSelect({
     router.push(
       buildHref(pathname, Object.fromEntries(searchParams), {
         [param]: next ?? undefined,
-        [PAGE_PARAM]: undefined,
       }),
     );
   }
