@@ -81,6 +81,7 @@ export const navSections: NavSection[] = [
             label: "Accessories",
             href: `${ASSETS_PATH}/accessories`,
             icon: Keyboard,
+            rememberState: true,
           },
         ],
       },

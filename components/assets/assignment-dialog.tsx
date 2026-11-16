@@ -20,6 +20,7 @@ import {
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { AssignmentErrors } from "@/lib/assets/checkout";
 import { ASSET_EVENT_NOTE_MAX_LENGTH } from "@/lib/schemas/asset";
@@ -38,6 +39,8 @@ type AssignmentDialogProps = {
   title: string;
   description: ReactNode;
   submitLabel: string;
+  // Accessory handouts keep no note, so their dialogs leave it out.
+  withNote?: boolean;
   notePlaceholder?: string;
   // Called as the dialog opens, so it starts from fresh values.
   onOpen: () => void;
@@ -59,6 +62,7 @@ export function AssignmentDialog({
   title,
   description,
   submitLabel,
+  withNote = true,
   notePlaceholder = "Optional, e.g. Charger and bag handed over",
   onOpen,
   onSubmit,
@@ -124,25 +128,27 @@ export function AssignmentDialog({
 
           {children(errors.fields ?? {}, clearFieldError)}
 
-          <Field data-invalid={noteError ? true : undefined}>
-            <FieldLabel htmlFor={noteId}>Note</FieldLabel>
-            <Textarea
-              id={noteId}
-              value={note}
-              onChange={(event) => {
-                setNote(event.target.value);
-                clearFieldError("note");
-              }}
-              maxLength={ASSET_EVENT_NOTE_MAX_LENGTH}
-              placeholder={notePlaceholder}
-              aria-invalid={noteError ? true : undefined}
-            />
-            {noteError ? (
-              <FieldError>{noteError}</FieldError>
-            ) : (
-              <FieldDescription>Shown in the asset history.</FieldDescription>
-            )}
-          </Field>
+          {withNote && (
+            <Field data-invalid={noteError ? true : undefined}>
+              <FieldLabel htmlFor={noteId}>Note</FieldLabel>
+              <Textarea
+                id={noteId}
+                value={note}
+                onChange={(event) => {
+                  setNote(event.target.value);
+                  clearFieldError("note");
+                }}
+                maxLength={ASSET_EVENT_NOTE_MAX_LENGTH}
+                placeholder={notePlaceholder}
+                aria-invalid={noteError ? true : undefined}
+              />
+              {noteError ? (
+                <FieldError>{noteError}</FieldError>
+              ) : (
+                <FieldDescription>Shown in the asset history.</FieldDescription>
+              )}
+            </Field>
+          )}
 
           {errors.message && (
             <p role="alert" className="text-sm text-destructive">
@@ -189,6 +195,51 @@ export function ChoiceField({
     <Field data-invalid={error ? true : undefined}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <ChoiceSelect id={id} invalid={Boolean(error)} {...select} />
+      {error || !description ? (
+        <FieldError>{error}</FieldError>
+      ) : (
+        <FieldDescription>{description}</FieldDescription>
+      )}
+    </Field>
+  );
+}
+
+type QuantityFieldProps = {
+  label: string;
+  // As typed, e.g. "2"; the schema turns it into a number.
+  value: string;
+  onChange: (value: string) => void;
+  max: number;
+  error?: string;
+  description?: ReactNode;
+};
+
+// How many, for accessories handed out or taken back.
+export function QuantityField({
+  label,
+  value,
+  onChange,
+  max,
+  error,
+  description,
+}: QuantityFieldProps) {
+  const id = useId();
+
+  return (
+    <Field data-invalid={error ? true : undefined}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={max}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={error ? true : undefined}
+        className="w-28"
+      />
       {error || !description ? (
         <FieldError>{error}</FieldError>
       ) : (
