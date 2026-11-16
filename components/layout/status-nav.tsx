@@ -1,15 +1,10 @@
 import { connection } from "next/server";
-import { cache } from "react";
 import { StatusDot } from "@/components/assets/status-badge";
 import { CountBadge } from "@/components/shared/count-badge";
 import { ASSETS_PATH } from "@/lib/assets/asset-types";
-import { listStatusTabsWithCounts } from "@/lib/assets/queries";
+import { getStatusCounts } from "@/lib/assets/queries";
 import { ALL_STATUS_SLUG, STATUS_PARAM } from "@/lib/assets/status-filters";
 import { FilterNavLink } from "./nav-link";
-
-// The desktop sidebar and the mobile menu both render this;
-// cache() makes them share one set of queries per request.
-const getStatusCounts = cache(() => listStatusTabsWithCounts());
 
 // Sidebar "By status" links with live counts across all assets.
 // "All" is skipped, since "All assets" is already in the menu.

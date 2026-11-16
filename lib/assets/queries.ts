@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { assetTypeConfigs } from "@/lib/assets/asset-types";
 import {
@@ -113,6 +114,10 @@ export async function listStatusTabsWithCounts(
   );
   return tabs.map((tab, index) => ({ ...tab, count: counts[index] }));
 }
+
+// The tabs of "All assets" with their counts. The sidebar (desktop and mobile)
+// and the dashboard share one set of queries per request.
+export const getStatusCounts = cache(() => listStatusTabsWithCounts());
 
 // Every matching asset: lists show them all on one page, so a selection can
 // take any of them (e.g. two PCs far apart in the list, checked out at once).

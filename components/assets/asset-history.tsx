@@ -57,16 +57,18 @@ const eventStyles: Record<AssetEventType, EventStyle> = {
 
 // The card around a history list; the count shows once it is loaded.
 function HistoryCard({
+  title = "History",
   count,
   children,
 }: {
+  title?: string;
   count?: number;
   children: ReactNode;
 }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>History</CardTitle>
+        <CardTitle>{title}</CardTitle>
         {count !== undefined && (
           <CardAction className="text-xs text-muted-foreground">
             {count === 1 ? "1 event" : `${count} events`}
@@ -94,7 +96,10 @@ function ChangeList({ changes }: { changes: FieldChange[] }) {
 
 // What an event is about, after its label: the person on an asset page
 // ("Checked out to Aysel Huseynova"), the asset on a person's page.
-type HistorySubject<Event> = (event: Event, style: EventStyle) => ReactNode;
+export type HistorySubject<Event> = (
+  event: Event,
+  style: EventStyle,
+) => ReactNode;
 
 type HistoryEntryProps<Event extends AssetHistoryEvent> = {
   event: Event;
@@ -141,6 +146,8 @@ function HistoryEntry<Event extends AssetHistoryEvent>({
 }
 
 type HistoryProps<Event extends AssetHistoryEvent> = {
+  // "History" by default, e.g. "Recent activity" on the dashboard.
+  title?: string;
   // Newest first.
   events: Event[];
   subject: HistorySubject<Event>;
@@ -148,11 +155,12 @@ type HistoryProps<Event extends AssetHistoryEvent> = {
 
 // A history card with its timeline of events, or a note when there are none.
 export function History<Event extends AssetHistoryEvent>({
+  title,
   events,
   subject,
 }: HistoryProps<Event>) {
   return (
-    <HistoryCard count={events.length}>
+    <HistoryCard title={title} count={events.length}>
       {events.length === 0 ? (
         <p className="text-muted-foreground">No history yet.</p>
       ) : (
@@ -189,9 +197,9 @@ export async function AssetHistory({ assetId }: { assetId: number }) {
   return <History events={events} subject={assetEventSubject} />;
 }
 
-export function HistoryFallback() {
+export function HistoryFallback({ title }: { title?: string }) {
   return (
-    <HistoryCard>
+    <HistoryCard title={title}>
       <p className="text-muted-foreground">Loading history…</p>
     </HistoryCard>
   );
