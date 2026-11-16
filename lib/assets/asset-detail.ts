@@ -322,13 +322,56 @@ export type AssetHistoryEvent = Omit<AssetEventRow, "changes"> & {
 };
 
 // Newest first; events saved in the same moment keep the order they were written.
+const newestFirst = [
+  { createdAt: "desc" },
+  { id: "desc" },
+] satisfies Prisma.AssetEventOrderByWithRelationInput[];
+
 export async function listAssetHistory(
   assetId: number,
 ): Promise<AssetHistoryEvent[]> {
   const events = await prisma.assetEvent.findMany({
     where: { assetId },
     select: assetEventSelect,
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    orderBy: newestFirst,
+  });
+  return events.map((event) => ({
+    ...event,
+    changes: parseFieldChanges(event.changes),
+  }));
+}
+
+// Events of many assets (a person's page, the dashboard) also say which
+// asset each one is about.
+const eventWithAssetSelect = {
+  ...assetEventSelect,
+  asset: {
+    select: {
+      id: true,
+      type: true,
+      assetTag: true,
+      name: true,
+      model: assetListSelect.model,
+    },
+  },
+} satisfies Prisma.AssetEventSelect;
+
+export type AssetEventWithAsset = AssetHistoryEvent & {
+  asset: Prisma.AssetEventGetPayload<{
+    select: typeof eventWithAssetSelect;
+  }>["asset"];
+};
+
+// Events across assets, newest first; `take` keeps only the latest few.
+export async function listAssetEvents(
+  where: Prisma.AssetEventWhereInput,
+  take?: number,
+): Promise<AssetEventWithAsset[]> {
+  const events = await prisma.assetEvent.findMany({
+    where,
+    select: eventWithAssetSelect,
+    orderBy: newestFirst,
+    take,
   });
   return events.map((event) => ({
     ...event,

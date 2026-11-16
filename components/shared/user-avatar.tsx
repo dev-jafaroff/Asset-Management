@@ -13,6 +13,8 @@ const avatarColors = [
 ];
 
 const avatarSizes = {
+  // 26px: same as a small IconTile, in compact lists next to asset icons.
+  sm: "size-6.5 text-[10px]",
   // 30px: same as a medium IconTile, so avatars and icons line up in lists.
   md: "size-7.5 text-xs",
   // 32px: the header.

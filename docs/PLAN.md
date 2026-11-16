@@ -176,14 +176,14 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [x] Type icons in tables and sidebar from one icon registry
 - [x] Asset list filters (company, location, model)
 - [x] Bulk actions on selected assets: check out, check in, change status (print labels: Phase 5)
-- [ ] Asset detail page and history timeline
+- [x] Asset detail page and history timeline
 - [x] Create and edit form per type (Intune fields read-only, phone number for phones, company for VMs)
 - [x] Checkout / checkin dialogs
 - [ ] Accessories: stock list, assign / return by quantity
 - [x] Users list and user detail page: all assigned items, "check in all" for offboarding
 - [ ] Handover PDF from the user page (optional; HR issues the official act)
-- [ ] Dashboard: clickable status tiles, assets by type, recent activity
-- [ ] Dashboard "Needs attention": missing in Intune, long in repair, inactive users still holding items
+- [x] Dashboard: clickable status tiles, assets by type, recent activity
+- [x] Dashboard "Needs attention": missing in Intune, long in repair, inactive users still holding items
 - [ ] Lookup table management page (admin)
 - [ ] CSV export
 

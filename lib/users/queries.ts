@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import {
-  assetEventSelect,
-  parseFieldChanges,
-  type AssetHistoryEvent,
+  listAssetEvents,
+  type AssetEventWithAsset,
 } from "@/lib/assets/asset-detail";
 import { assetListSelect } from "@/lib/assets/queries";
 import type { Prisma } from "@/lib/generated/prisma/client";
@@ -160,32 +159,9 @@ export function getReceivedAt(asset: UserAsset): Date | null {
 
 // ─── History ─────────────────────────────────────────────────────────────────
 
-export type UserHistoryEvent = AssetHistoryEvent & {
-  asset: Pick<UserAsset, "id" | "type" | "assetTag" | "name" | "model">;
-};
-
 // Everything handed to or taken back from the person, newest first.
-export async function listUserHistory(
+export function listUserHistory(
   userId: number,
-): Promise<UserHistoryEvent[]> {
-  const events = await prisma.assetEvent.findMany({
-    where: { targetUserId: userId },
-    select: {
-      ...assetEventSelect,
-      asset: {
-        select: {
-          id: true,
-          type: true,
-          assetTag: true,
-          name: true,
-          model: assetListSelect.model,
-        },
-      },
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-  });
-  return events.map((event) => ({
-    ...event,
-    changes: parseFieldChanges(event.changes),
-  }));
+): Promise<AssetEventWithAsset[]> {
+  return listAssetEvents({ targetUserId: userId });
 }
