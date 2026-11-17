@@ -18,8 +18,13 @@ import { getFirstFieldErrors } from "@/lib/schemas/asset";
 // e.g. PC-00007, "In repair assets cannot be checked out."
 export type SkippedAsset = { assetId: number; name: string; reason: string };
 
-// What a bulk action did, shown above the list once it is done.
-export type BulkSummary = { done: number; skipped: SkippedAsset[] };
+// What a bulk action did, shown above the list once it is done. "Check in
+// all" also takes back accessories, counted in pieces.
+export type BulkSummary = {
+  done: number;
+  skipped: SkippedAsset[];
+  accessories?: number;
+};
 
 // The dialog's errors, or what was done once it ran.
 export type BulkActionResult =
@@ -50,7 +55,7 @@ export async function authorizeBulk<Schema extends z.ZodType>(
 // Ends a bulk Server Action: reloads the page when anything changed, so it
 // shows the new state.
 export function finishBulk(summary: BulkSummary): BulkActionResult {
-  if (summary.done > 0) refresh();
+  if (summary.done > 0 || (summary.accessories ?? 0) > 0) refresh();
   return { summary };
 }
 

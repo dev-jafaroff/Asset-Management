@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BulkActionResult, BulkSummary } from "@/lib/assets/bulk-actions";
 import type { AssignmentErrors } from "@/lib/assets/checkout";
+import { formatAccessoryCount } from "@/lib/schemas/accessory";
 import { formatCount } from "@/lib/utils";
 
 // What an action on several assets did, e.g. "Checked out" with its summary.
@@ -30,7 +31,14 @@ export function BulkOutcomeMessage({
   outcome,
   onDismiss,
 }: BulkOutcomeMessageProps) {
-  const { action, done, skipped } = outcome;
+  const { action, done, skipped, accessories = 0 } = outcome;
+  // e.g. "3 assets and 2 accessories"; a count of 0 is left out.
+  const changed = [
+    done > 0 && formatCount(done, "asset"),
+    accessories > 0 && formatAccessoryCount(accessories),
+  ]
+    .filter(Boolean)
+    .join(" and ");
 
   return (
     <div
@@ -39,9 +47,7 @@ export function BulkOutcomeMessage({
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="font-medium">
-          {done > 0
-            ? `${action} ${formatCount(done, "asset")}.`
-            : "Nothing was changed."}
+          {changed ? `${action} ${changed}.` : "Nothing was changed."}
         </p>
         {skipped.length > 0 && (
           <div className="text-muted-foreground">

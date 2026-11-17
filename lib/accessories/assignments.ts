@@ -1,3 +1,4 @@
+import { openAssignmentWhere } from "@/lib/accessories/queries";
 import { lockAccessoryStock } from "@/lib/accessories/stock";
 import type { AssetChangeResult } from "@/lib/assets/checkout";
 import { Prisma } from "@/lib/generated/prisma/client";
@@ -122,5 +123,35 @@ export function returnAccessory({
       },
     });
     return null;
+  });
+}
+
+// Offboarding: takes back every accessory the person still has. Returns how
+// many pieces came back, e.g. 3 for one headset and two mice.
+export function returnAllAccessories({
+  userId,
+  actorId,
+}: Actor & { userId: number }): Promise<number> {
+  const where = { ...openAssignmentWhere, userId };
+  return prisma.$transaction(async (tx) => {
+    const accessories = await tx.accessoryAssignment.findMany({
+      where,
+      distinct: ["accessoryId"],
+      select: { accessoryId: true },
+      orderBy: { accessoryId: "asc" },
+    });
+    // Locked like single returns, in one order, so they wait for each other.
+    for (const { accessoryId } of accessories) {
+      await lockAccessoryStock(tx, accessoryId);
+    }
+    const held = await tx.accessoryAssignment.aggregate({
+      where,
+      _sum: { quantity: true },
+    });
+    await tx.accessoryAssignment.updateMany({
+      where,
+      data: { returnedAt: new Date(), returnedById: actorId },
+    });
+    return held._sum.quantity ?? 0;
   });
 }

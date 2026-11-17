@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { eventNoteSchema, requiredChoice } from "@/lib/schemas/asset";
+import { formatCount } from "@/lib/utils";
 
 export const ACCESSORY_NAME_MAX_LENGTH = 100;
 // Far above any real stock; stops typos like 1000000.
@@ -52,6 +53,16 @@ export type AccessoryFormValues = z.input<typeof accessoryFormSchema>;
 export type AccessoryFormData = z.output<typeof accessoryFormSchema>;
 export type AssignAccessoryValues = z.input<typeof assignAccessorySchema>;
 export type ReturnAccessoryValues = z.input<typeof returnAccessorySchema>;
+
+// The pieces in some handouts, e.g. 3 for one headset and two mice.
+export function sumQuantity(handouts: { quantity: number }[]): number {
+  return handouts.reduce((sum, handout) => sum + handout.quantity, 0);
+}
+
+// e.g. "1 accessory", "3 accessories"; counted in pieces.
+export function formatAccessoryCount(count: number): string {
+  return formatCount(count, "accessory", "accessories");
+}
 
 // e.g. "1 is handed out", "12 are handed out"; used by the form and the server.
 export function describeHandedOut(count: number): string {

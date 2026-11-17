@@ -43,11 +43,11 @@ type AssignmentDialogProps = {
   withNote?: boolean;
   notePlaceholder?: string;
   // Called as the dialog opens, so it starts from fresh values.
-  onOpen: () => void;
+  onOpen?: () => void;
   onSubmit: (note: string) => Promise<AssignmentErrors | null>;
-  // The dialog's own fields, above the note. They get their errors by name,
-  // and clear one as soon as its value changes.
-  children: (
+  // The dialog's own fields, above the note; none when it only confirms.
+  // They get their errors by name, and clear one as soon as its value changes.
+  children?: (
     fieldErrors: Record<string, string>,
     clearFieldError: (field: string) => void,
   ) => ReactNode;
@@ -78,7 +78,7 @@ export function AssignmentDialog({
     if (next) {
       setNote("");
       setErrors({});
-      onOpen();
+      onOpen?.();
     }
     setOpen(next);
   }
@@ -126,7 +126,7 @@ export function AssignmentDialog({
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
 
-          {children(errors.fields ?? {}, clearFieldError)}
+          {children?.(errors.fields ?? {}, clearFieldError)}
 
           {withNote && (
             <Field data-invalid={noteError ? true : undefined}>

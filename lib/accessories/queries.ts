@@ -4,6 +4,7 @@ import type { FormOption } from "@/lib/assets/asset-form-options";
 import { ASSETS_PATH } from "@/lib/assets/asset-types";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { sumQuantity } from "@/lib/schemas/accessory";
 import { getPositiveIntParam } from "@/lib/search-params";
 
 export const ACCESSORIES_PATH = `${ASSETS_PATH}/accessories`;
@@ -19,7 +20,7 @@ export function getEditAccessoryPath(id: number): string {
 }
 
 // Handed out now: not returned yet.
-const openAssignmentWhere = {
+export const openAssignmentWhere = {
   returnedAt: null,
 } satisfies Prisma.AccessoryAssignmentWhereInput;
 
@@ -48,6 +49,46 @@ async function countAssigned(): Promise<Map<number, number>> {
   return new Map(
     groups.map((group) => [group.accessoryId, group._sum.quantity ?? 0]),
   );
+}
+
+// ─── Per person ──────────────────────────────────────────────────────────────
+
+// What a person has now, for their page: each handout with its accessory,
+// longest held first.
+export const heldAccessoriesArgs = {
+  where: openAssignmentWhere,
+  select: {
+    id: true,
+    quantity: true,
+    assignedAt: true,
+    accessory: { select: { id: true, name: true, category: categorySelect } },
+  },
+  orderBy: [{ assignedAt: "asc" }, { id: "asc" }],
+} satisfies Prisma.AccessoryAssignmentFindManyArgs;
+
+// Adds how many accessories each person has now (pieces, not handouts:
+// one handout of 2 mice counts 2), e.g. for the users list.
+export async function withHeldAccessories<Person extends { id: number }>(
+  people: Person[],
+): Promise<(Person & { heldAccessories: number })[]> {
+  const groups =
+    people.length === 0
+      ? []
+      : await prisma.accessoryAssignment.groupBy({
+          by: ["userId"],
+          where: {
+            ...openAssignmentWhere,
+            userId: { in: people.map((person) => person.id) },
+          },
+          _sum: { quantity: true },
+        });
+  const held = new Map(
+    groups.map((group) => [group.userId, group._sum.quantity ?? 0]),
+  );
+  return people.map((person) => ({
+    ...person,
+    heldAccessories: held.get(person.id) ?? 0,
+  }));
 }
 
 // ─── List ────────────────────────────────────────────────────────────────────
@@ -129,11 +170,10 @@ async function findAccessory(id: number): Promise<AccessoryDetail | null> {
     select: accessoryDetailSelect,
   });
   if (!accessory) return null;
-  const assigned = accessory.assignments.reduce(
-    (sum, assignment) => sum + assignment.quantity,
-    0,
-  );
-  return { ...accessory, stock: toStock(accessory.totalQuantity, assigned) };
+  return {
+    ...accessory,
+    stock: toStock(accessory.totalQuantity, sumQuantity(accessory.assignments)),
+  };
 }
 
 // Wrapped in cache(), so the page and its metadata share one query per request.
