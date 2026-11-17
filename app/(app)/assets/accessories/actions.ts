@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   assignAccessory,
   returnAccessory,
+  returnAllAccessories,
 } from "@/lib/accessories/assignments";
 import { getAccessoryPath } from "@/lib/accessories/queries";
 import { createAccessory, updateAccessory } from "@/lib/accessories/stock";
@@ -22,6 +23,7 @@ import {
   type ReturnAccessoryValues,
 } from "@/lib/schemas/accessory";
 import { getFirstFieldErrors } from "@/lib/schemas/asset";
+import { userIdSchema } from "@/lib/schemas/user";
 
 const NO_PERMISSION: AssignmentErrors = {
   message: "You do not have permission to edit accessories.",
@@ -112,6 +114,25 @@ export async function submitAccessoryReturn(
     ...input.data,
   });
   if (refused) return { message: refused };
+  refresh();
+  return null;
+}
+
+// Takes back every accessory the person has, from their page; null when
+// done. `userId` is bound by the page, but still validated.
+export async function submitReturnAllAccessories(
+  userId: unknown,
+): Promise<AssignmentErrors | null> {
+  const editor = await getEditor();
+  if (!editor) return NO_PERMISSION;
+  const id = userIdSchema.safeParse(userId);
+  if (!id.success) return { message: "Unknown person." };
+
+  const returned = await returnAllAccessories({
+    userId: id.data,
+    actorId: editor.id,
+  });
+  if (returned === 0) return { message: "They have no accessories left." };
   refresh();
   return null;
 }

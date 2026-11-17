@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { BulkActionResult } from "@/lib/assets/bulk-actions";
+import { formatAccessoryCount } from "@/lib/schemas/accessory";
 import type { CheckinValues } from "@/lib/schemas/asset";
 import { formatCount } from "@/lib/utils";
 
@@ -23,6 +24,8 @@ import { formatCount } from "@/lib/utils";
 // to take back.
 type CheckInAll = {
   userName: string;
+  // Pieces of accessories that come back with the assets.
+  accessories: number;
   statuses: Choice[];
   defaultStatusId: number | null;
   onSubmit: (values: CheckinValues) => Promise<BulkActionResult>;
@@ -34,6 +37,16 @@ type UserAssetsCardProps = {
   // The asset table, or a note when there is none.
   children: ReactNode;
 };
+
+// e.g. "Take back all 3 assets and 2 accessories. Each asset gets its own
+// history entry."
+function describeCheckInAll(assets: number, accessories: number): string {
+  const items =
+    accessories > 0
+      ? `${formatCount(assets, "asset")} and ${formatAccessoryCount(accessories)}`
+      : formatCount(assets, "asset");
+  return `Take back all ${items}. Each asset gets its own history entry.`;
+}
 
 // Everything the person holds. "Check in all" takes it back in one go, e.g.
 // when they leave, and then says what was done and what was skipped.
@@ -56,7 +69,7 @@ export function UserAssetsCard({
             <CheckinDialog
               triggerLabel="Check in all"
               title={`Check in all from ${checkIn.userName}`}
-              description={`Take back all ${formatCount(count, "asset")}. Each one gets its own history entry.`}
+              description={describeCheckInAll(count, checkIn.accessories)}
               statuses={checkIn.statuses}
               defaultStatusId={checkIn.defaultStatusId}
               onSubmit={async (values) =>

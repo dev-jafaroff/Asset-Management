@@ -179,7 +179,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [x] Asset detail page and history timeline
 - [x] Create and edit form per type (Intune fields read-only, phone number for phones, company for VMs)
 - [x] Checkout / checkin dialogs
-- [ ] Accessories: stock list, assign / return by quantity
+- [x] Accessories: stock list, assign / return by quantity
 - [x] Users list and user detail page: all assigned items, "check in all" for offboarding
 - [ ] Handover PDF from the user page (optional; HR issues the official act)
 - [x] Dashboard: clickable status tiles, assets by type, recent activity

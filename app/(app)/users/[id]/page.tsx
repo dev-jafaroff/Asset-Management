@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { UserAccessoriesCard } from "@/components/users/user-accessories-card";
 import { UserAssetsCard } from "@/components/users/user-assets-card";
 import { getCheckinOptions } from "@/lib/assets/asset-form-options";
 import { getAssetPath, getAssetTypeConfig } from "@/lib/assets/asset-types";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/assets/format";
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
+import { sumQuantity } from "@/lib/schemas/accessory";
 import {
   getReceivedAt,
   getRouteUser,
@@ -77,6 +79,7 @@ function UserPageFallback() {
 async function UserPageContent({ params }: Pick<UserPageProps, "params">) {
   const user = await getRouteUser(await params);
   const viewer = await getCurrentUser();
+  const canEdit = can(viewer.role, "asset:edit");
   const description = [user.jobTitle, user.department]
     .filter(Boolean)
     .join(" · ");
@@ -99,7 +102,15 @@ async function UserPageContent({ params }: Pick<UserPageProps, "params">) {
       />
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <UserAssets user={user} canEdit={can(viewer.role, "asset:edit")} />
+        <div className="flex flex-col gap-4">
+          <UserAssets user={user} canEdit={canEdit} />
+          <UserAccessoriesCard
+            userId={user.id}
+            userName={user.displayName}
+            accessories={user.accessories}
+            canEdit={canEdit}
+          />
+        </div>
         {/* A long history must not hold back the assets. */}
         <Suspense fallback={<HistoryFallback />}>
           <UserHistory userId={user.id} />
@@ -119,7 +130,9 @@ async function UserAssets({
   canEdit: boolean;
 }) {
   const assets = user.assignedAssets;
-  // The dialog's statuses are only loaded when it can be used.
+  // The dialog's statuses are only loaded when it can be used. With no
+  // assets there is no status to choose: accessories are returned on their
+  // own card.
   const checkin =
     canEdit && assets.length > 0 ? await getCheckinOptions() : null;
 
@@ -129,6 +142,7 @@ async function UserAssets({
       checkIn={
         checkin && {
           userName: user.displayName,
+          accessories: sumQuantity(user.accessories),
           ...checkin,
           onSubmit: checkInAllFromUser.bind(null, user.id),
         }

@@ -7,7 +7,11 @@ import {
   QuantityField,
   type AssignmentSubmit,
 } from "@/components/assets/assignment-dialog";
-import type { ReturnAccessoryValues } from "@/lib/schemas/accessory";
+import type { AssignmentErrors } from "@/lib/assets/checkout";
+import {
+  formatAccessoryCount,
+  type ReturnAccessoryValues,
+} from "@/lib/schemas/accessory";
 
 type ReturnAccessoryDialogProps = {
   accessoryName: string;
@@ -55,5 +59,33 @@ export function ReturnAccessoryDialog({
         )
       }
     </AssignmentDialog>
+  );
+}
+
+type ReturnAllAccessoriesDialogProps = {
+  // Whose accessories come back, e.g. "Aysel Huseynova".
+  holderName: string;
+  // How many pieces they have, e.g. 3 for one headset and two mice.
+  pieces: number;
+  onSubmit: () => Promise<AssignmentErrors | null>;
+};
+
+// Takes back everything the person has on the user page, e.g. when they
+// leave; it only asks to confirm.
+export function ReturnAllAccessoriesDialog({
+  holderName,
+  pieces,
+  onSubmit,
+}: ReturnAllAccessoriesDialogProps) {
+  return (
+    <AssignmentDialog
+      triggerLabel="Return all"
+      triggerIcon={LogIn}
+      title={`Return all from ${holderName}`}
+      description={`Take back all ${formatAccessoryCount(pieces)} into stock.`}
+      submitLabel="Return all"
+      withNote={false}
+      onSubmit={onSubmit}
+    />
   );
 }

@@ -1,3 +1,4 @@
+import { withHeldAccessories } from "@/lib/accessories/queries";
 import {
   listAssetEvents,
   parseFieldChanges,
@@ -7,6 +8,7 @@ import { assetFormFieldLabels } from "@/lib/assets/asset-form";
 import { assetListSelect } from "@/lib/assets/queries";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { holdsItemsWhere } from "@/lib/users/queries";
 import { daysBetween } from "@/lib/utils";
 
 // ─── Needs attention ─────────────────────────────────────────────────────────
@@ -75,27 +77,26 @@ export async function listLongUnavailableAssets(
     .sort((a, b) => b.days - a.days);
 }
 
-export type InactiveHolder = Prisma.UserGetPayload<{
-  select: {
-    id: true;
-    displayName: true;
-    department: true;
-    _count: { select: { assignedAssets: true } };
-  };
-}>;
+const inactiveHolderSelect = {
+  id: true,
+  displayName: true,
+  department: true,
+  _count: { select: { assignedAssets: true } },
+} satisfies Prisma.UserSelect;
 
-// People who left but still hold assets: to be taken back (offboarding).
-export function listInactiveHolders(): Promise<InactiveHolder[]> {
-  return prisma.user.findMany({
-    where: { isActive: false, assignedAssets: { some: {} } },
-    select: {
-      id: true,
-      displayName: true,
-      department: true,
-      _count: { select: { assignedAssets: true } },
-    },
+export type InactiveHolder = Prisma.UserGetPayload<{
+  select: typeof inactiveHolderSelect;
+}> & { heldAccessories: number };
+
+// People who left but still hold assets or accessories: to be taken back
+// (offboarding).
+export async function listInactiveHolders(): Promise<InactiveHolder[]> {
+  const people = await prisma.user.findMany({
+    where: { isActive: false, ...holdsItemsWhere },
+    select: inactiveHolderSelect,
     orderBy: { displayName: "asc" },
   });
+  return withHeldAccessories(people);
 }
 
 // Devices the Intune sync no longer finds, e.g. wiped or removed there.

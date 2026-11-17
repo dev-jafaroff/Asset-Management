@@ -21,8 +21,17 @@ function orDash(value: string | null): string {
   return value ?? "—";
 }
 
-// People with their department and how many assets they hold; a row opens
-// the person's page.
+// How many of something the person holds; a dash for none.
+function CountCell({ count }: { count: number }) {
+  return (
+    <TableCell className="text-right tabular-nums">
+      {count > 0 ? count : "—"}
+    </TableCell>
+  );
+}
+
+// People with their department and how many assets and accessories they
+// hold; a row opens the person's page.
 export function UserTable({ users }: { users: UserRow[] }) {
   const getRowLinkProps = useRowNavigation();
 
@@ -36,13 +45,13 @@ export function UserTable({ users }: { users: UserRow[] }) {
             <TableHead>Department</TableHead>
             <TableHead>Job title</TableHead>
             <TableHead className="text-right">Assets</TableHead>
+            <TableHead className="text-right">Accessories</TableHead>
           </TableRow>
         </TableHeader>
 
         <TableBody>
           {users.map((user) => {
             const { href } = user;
-            const assetCount = user._count.assignedAssets;
 
             return (
               <TableRow
@@ -67,9 +76,8 @@ export function UserTable({ users }: { users: UserRow[] }) {
                 </TableCell>
                 <TableCell>{orDash(user.department)}</TableCell>
                 <TableCell>{orDash(user.jobTitle)}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {assetCount > 0 ? assetCount : "—"}
-                </TableCell>
+                <CountCell count={user._count.assignedAssets} />
+                <CountCell count={user.heldAccessories} />
               </TableRow>
             );
           })}

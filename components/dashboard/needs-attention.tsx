@@ -20,6 +20,7 @@ import {
   listMissingInIntune,
 } from "@/lib/dashboard/queries";
 import { getUserPath } from "@/lib/users/queries";
+import { formatAccessoryCount } from "@/lib/schemas/accessory";
 import { formatCount } from "@/lib/utils";
 
 const TITLE = "Needs attention";
@@ -64,16 +65,20 @@ export async function NeedsAttention() {
       })),
     },
     {
-      title: "People who left, still holding assets",
-      hint: "Take them back with Check in all on their page.",
+      title: "People who left, still holding items",
+      hint: "Take them back on their page.",
       items: inactiveHolders.map((user) => ({
         key: `user-${user.id}`,
         href: getUserPath(user.id),
         icon: <UserAvatar name={user.displayName} size="sm" />,
         label: user.displayName,
+        // e.g. "IT · 2 assets · 1 accessory"; a count of 0 is left out.
         detail: [
           user.department,
-          formatCount(user._count.assignedAssets, "asset"),
+          user._count.assignedAssets > 0 &&
+            formatCount(user._count.assignedAssets, "asset"),
+          user.heldAccessories > 0 &&
+            formatAccessoryCount(user.heldAccessories),
         ]
           .filter(Boolean)
           .join(" · "),

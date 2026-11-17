@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import {
+  heldAccessoriesArgs,
+  openAssignmentWhere,
+  withHeldAccessories,
+} from "@/lib/accessories/queries";
+import {
   listAssetEvents,
   type AssetEventWithAsset,
 } from "@/lib/assets/asset-detail";
@@ -28,9 +33,18 @@ const userListSelect = {
   _count: { select: { assignedAssets: true } },
 } satisfies Prisma.UserSelect;
 
+// With the number of accessories the person has now.
 export type UserListItem = Prisma.UserGetPayload<{
   select: typeof userListSelect;
-}>;
+}> & { heldAccessories: number };
+
+// Has something to give back: an asset, or an accessory not returned yet.
+export const holdsItemsWhere = {
+  OR: [
+    { assignedAssets: { some: {} } },
+    { accessories: { some: openAssignmentWhere } },
+  ],
+} satisfies Prisma.UserWhereInput;
 
 export const USER_TAB_PARAM = "status";
 
@@ -43,7 +57,7 @@ const userTabs: UserTab[] = [
   {
     slug: "holding",
     label: "Holding items",
-    where: { assignedAssets: { some: {} } },
+    where: holdsItemsWhere,
   },
   { slug: "left", label: "Left", where: { isActive: false } },
 ];
@@ -97,11 +111,12 @@ export async function listUsers(filter: {
   tab: UserTab;
   search?: string;
 }): Promise<UserListItem[]> {
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     where: { AND: [filter.tab.where, buildUserSearchWhere(filter.search)] },
     select: userListSelect,
     orderBy: [{ displayName: "asc" }, { id: "asc" }],
   });
+  return withHeldAccessories(users);
 }
 
 // ─── Detail ──────────────────────────────────────────────────────────────────
@@ -128,11 +143,13 @@ function getUserDetailSelect(userId: number) {
       },
       orderBy: [{ type: "asc" }, { assetTag: "asc" }, { id: "asc" }],
     },
+    accessories: heldAccessoriesArgs,
   } satisfies Prisma.UserSelect;
 }
 
 export type UserDetail = NonNullable<Awaited<ReturnType<typeof findUser>>>;
 export type UserAsset = UserDetail["assignedAssets"][number];
+export type UserAccessory = UserDetail["accessories"][number];
 
 function findUser(id: number) {
   return prisma.user.findUnique({
