@@ -93,7 +93,12 @@ export const navSections: NavSection[] = [
     title: "Admin",
     roles: ["ADMIN"],
     items: [
-      { label: "Lookup tables", href: "/admin/lookups", icon: Tags },
+      {
+        label: "Lookup tables",
+        href: "/admin/lookups",
+        icon: Tags,
+        rememberState: true,
+      },
       { label: "Intune sync", href: "/admin/sync", icon: RefreshCw },
     ],
   },

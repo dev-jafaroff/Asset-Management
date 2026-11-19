@@ -18,13 +18,20 @@ type StatusTabsProps = {
   activeSlug: string;
   // Shown at the right end of the row, right above the table (e.g. the column menu).
   actions?: ReactNode;
+  // What the tabs choose, for screen readers, e.g. "Choose a table".
+  label?: string;
 };
 
-export function StatusTabs({ tabs, activeSlug, actions }: StatusTabsProps) {
+export function StatusTabs({
+  tabs,
+  activeSlug,
+  actions,
+  label = "Filter by status",
+}: StatusTabsProps) {
   return (
     <div className="flex items-end">
       <nav
-        aria-label="Filter by status"
+        aria-label={label}
         className="flex min-w-0 flex-1 gap-1 overflow-x-auto overflow-y-hidden border-b"
       >
         {tabs.map((tab) => {
