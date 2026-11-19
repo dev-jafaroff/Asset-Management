@@ -12,13 +12,13 @@ import { BulkActionBar } from "@/components/assets/bulk-action-bar";
 import { useAssetColumnVisibility } from "@/components/assets/column-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListTable } from "@/components/shared/list-layout";
 import { useRowNavigation } from "@/hooks/use-row-navigation";
 import type { BulkActionOptions } from "@/lib/assets/asset-form-options";
 import { getAssetPath } from "@/lib/assets/asset-types";
@@ -66,7 +66,7 @@ export function AssetTable({ assets, type, bulkOptions }: AssetTableProps) {
   const selected = table.getSelectedRowModel().rows.map((row) => row.original);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-h-0 flex-col gap-2">
       {selectable && (
         <BulkActionBar
           selected={selected}
@@ -75,86 +75,82 @@ export function AssetTable({ assets, type, bulkOptions }: AssetTableProps) {
         />
       )}
 
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {/* Kept out of the column set, so the column menu and the
+      <ListTable>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {/* Kept out of the column set, so the column menu and the
                     "first column links to the asset" rule ignore it. */}
-                {selectable && (
-                  <TableHead className="w-10">
-                    <Checkbox
-                      aria-label="Select all assets on this page"
-                      checked={table.getIsAllPageRowsSelected()}
-                      indeterminate={table.getIsSomePageRowsSelected()}
-                      onCheckedChange={(checked) =>
-                        table.toggleAllPageRowsSelected(checked)
-                      }
-                    />
-                  </TableHead>
-                )}
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {!header.isPlaceholder && (
-                      <table.FlexRender header={header} />
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-
-          <TableBody>
-            {table.getRowModel().rows.map((row) => {
-              const href = getAssetPath(row.original.type, row.original.id);
-              const isSelected = row.getIsSelected();
-
-              return (
-                <TableRow
-                  key={row.id}
-                  data-state={isSelected ? "selected" : undefined}
-                  className="cursor-pointer"
-                  {...getRowLinkProps(href)}
-                >
-                  {selectable && (
-                    <TableCell>
-                      <Checkbox
-                        aria-label={`Select ${getAssetDisplayName(row.original)}`}
-                        checked={isSelected}
-                        onCheckedChange={(checked) =>
-                          row.toggleSelected(checked)
-                        }
-                      />
-                    </TableCell>
+              {selectable && (
+                <TableHead className="w-10">
+                  <Checkbox
+                    aria-label="Select all assets on this page"
+                    checked={table.getIsAllPageRowsSelected()}
+                    indeterminate={table.getIsSomePageRowsSelected()}
+                    onCheckedChange={(checked) =>
+                      table.toggleAllPageRowsSelected(checked)
+                    }
+                  />
+                </TableHead>
+              )}
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {!header.isPlaceholder && (
+                    <table.FlexRender header={header} />
                   )}
-                  {row.getVisibleCells().map((cell, index) => {
-                    const content = <table.FlexRender cell={cell} />;
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
 
-                    return (
-                      <TableCell key={cell.id}>
-                        {/* The first column identifies the asset: it carries
+        <TableBody>
+          {table.getRowModel().rows.map((row) => {
+            const href = getAssetPath(row.original.type, row.original.id);
+            const isSelected = row.getIsSelected();
+
+            return (
+              <TableRow
+                key={row.id}
+                data-state={isSelected ? "selected" : undefined}
+                className="cursor-pointer"
+                {...getRowLinkProps(href)}
+              >
+                {selectable && (
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`Select ${getAssetDisplayName(row.original)}`}
+                      checked={isSelected}
+                      onCheckedChange={(checked) => row.toggleSelected(checked)}
+                    />
+                  </TableCell>
+                )}
+                {row.getVisibleCells().map((cell, index) => {
+                  const content = <table.FlexRender cell={cell} />;
+
+                  return (
+                    <TableCell key={cell.id}>
+                      {/* The first column identifies the asset: it carries
                             the type icon and the link to the detail page. */}
-                        {index === 0 ? (
-                          <Link
-                            href={href}
-                            className="flex w-fit items-center gap-2 font-medium text-primary hover:underline"
-                          >
-                            <AssetTypeIcon type={row.original.type} />
-                            {content}
-                          </Link>
-                        ) : (
-                          content
-                        )}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                      {index === 0 ? (
+                        <Link
+                          href={href}
+                          className="flex w-fit items-center gap-2 font-medium text-primary hover:underline"
+                        >
+                          <AssetTypeIcon type={row.original.type} />
+                          {content}
+                        </Link>
+                      ) : (
+                        content
+                      )}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </ListTable>
     </div>
   );
 }

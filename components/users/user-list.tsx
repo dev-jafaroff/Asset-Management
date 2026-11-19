@@ -33,7 +33,7 @@ export async function UserList({
   const users = await listUsers({ tab: activeTab, search });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-col gap-4">
       <ListSearch
         label="Search people"
         placeholder="Search by name, email or department"
