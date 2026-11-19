@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
-import { saveLookup } from "@/app/(app)/admin/lookups/actions";
-import { LookupDialog } from "@/components/lookups/lookup-dialog";
+import { deleteLookup, saveLookup } from "@/app/(app)/admin/lookups/actions";
+import {
+  DeleteLookupDialog,
+  LookupDialog,
+} from "@/components/lookups/lookup-dialog";
 import { ListTable } from "@/components/shared/list-layout";
 import {
   TableBody,
@@ -9,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { LookupUsage } from "@/lib/lookups/queries";
 import type {
   LookupField,
   LookupSlug,
@@ -19,12 +23,13 @@ import type {
 // header and on every cell of the column.
 export type LookupColumn = { label: string; className?: string };
 
-// One row: its cells in the order of the columns, and what its edit dialog
-// starts with.
+// One row: its cells in the order of the columns, what its edit dialog
+// starts with (its name among them), and where it is used.
 export type LookupRow = {
   id: number;
   cells: ReactNode[];
-  values: LookupValues;
+  values: LookupValues & { name: string };
+  usage: LookupUsage;
 };
 
 // The dialog of a tab: what one row is called and the fields it has.
@@ -34,7 +39,7 @@ export type LookupForm = {
   fields: LookupField[];
 };
 
-// The table of one lookup tab, with Edit at the end of each row.
+// The table of one lookup tab, with Edit and Delete at the end of each row.
 export function LookupTable({
   columns,
   rows,
@@ -69,13 +74,21 @@ export function LookupTable({
                 {cell}
               </TableCell>
             ))}
-            <TableCell className="text-right">
-              <LookupDialog
-                noun={form.noun}
-                fields={form.fields}
-                values={row.values}
-                onSave={saveLookup.bind(null, form.slug, row.id)}
-              />
+            <TableCell>
+              <div className="flex justify-end gap-1">
+                <LookupDialog
+                  noun={form.noun}
+                  fields={form.fields}
+                  values={row.values}
+                  onSave={saveLookup.bind(null, form.slug, row.id)}
+                />
+                <DeleteLookupDialog
+                  noun={form.noun}
+                  name={row.values.name}
+                  usedBy={row.usage.inUse ? row.usage.label : undefined}
+                  onDelete={deleteLookup.bind(null, form.slug, row.id)}
+                />
+              </div>
             </TableCell>
           </TableRow>
         ))}

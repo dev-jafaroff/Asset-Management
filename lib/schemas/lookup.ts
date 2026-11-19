@@ -14,8 +14,10 @@ export const lookupSlugs = [
 export type LookupSlug = (typeof lookupSlugs)[number];
 
 export const lookupSlugSchema = z.enum(lookupSlugs);
+// An existing row.
+export const lookupRowIdSchema = z.number().int().positive();
 // Null when the dialog adds a new row.
-export const lookupIdSchema = z.number().int().positive().nullable();
+export const lookupIdSchema = lookupRowIdSchema.nullable();
 
 export const LOOKUP_NAME_MAX_LENGTH = 100;
 

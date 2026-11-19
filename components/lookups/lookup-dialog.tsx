@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Pencil, Plus } from "lucide-react";
+import { Ban, Pencil, Plus, Trash2 } from "lucide-react";
 import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import { CategoryIcon } from "@/components/assets/asset-icons";
 import {
@@ -356,5 +356,50 @@ function ColorPicker({
         className="w-28 font-mono"
       />
     </div>
+  );
+}
+
+type DeleteLookupDialogProps = {
+  // What one row is called, e.g. "status".
+  noun: string;
+  name: string;
+  // e.g. "12 assets"; set when the row is in use and cannot be deleted.
+  usedBy?: string;
+  onDelete: () => Promise<AssignmentErrors | null>;
+};
+
+// Deletes a row nothing uses, after asking. A row in use only says why it
+// cannot go: it can still be renamed.
+export function DeleteLookupDialog({
+  noun,
+  name,
+  usedBy,
+  onDelete,
+}: DeleteLookupDialogProps) {
+  const dialog = (
+    <AssignmentDialog
+      triggerLabel="Delete"
+      triggerIcon={Trash2}
+      triggerVariant="ghost"
+      disabled={usedBy !== undefined}
+      title={`Delete ${noun}`}
+      description={`“${name}” is not used anywhere. Deleting it cannot be undone.`}
+      submitLabel="Delete"
+      submitVariant="destructive"
+      withNote={false}
+      onSubmit={onDelete}
+    />
+  );
+
+  // A disabled button shows no hover label, so the reason sits on a wrapper.
+  return usedBy === undefined ? (
+    dialog
+  ) : (
+    <span
+      title={`Used by ${usedBy}, so it cannot be deleted. Rename it instead.`}
+      className="inline-flex cursor-not-allowed"
+    >
+      {dialog}
+    </span>
   );
 }

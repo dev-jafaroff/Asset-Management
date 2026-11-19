@@ -235,6 +235,7 @@ async function loadLookupTable(
         ],
         rows: (await listStatuses(search)).map((status) => ({
           id: status.id,
+          usage: status.usage,
           values: {
             name: status.name,
             type: status.type,
@@ -283,6 +284,7 @@ async function loadLookupTable(
         ],
         rows: (await listModels(search)).map((model) => ({
           id: model.id,
+          usage: model.usage,
           values: {
             name: model.name,
             manufacturer: model.manufacturer ?? "",
@@ -311,6 +313,7 @@ async function loadLookupTable(
         ],
         rows: (await listCategories(search)).map((category) => ({
           id: category.id,
+          usage: category.usage,
           values: { name: category.name, icon: category.icon },
           cells: [
             <span key="name" className="flex items-center gap-2">
@@ -332,6 +335,7 @@ async function loadLookupTable(
         fields: [{ ...nameField, placeholder: "e.g. DRL" }],
         rows: (await listCompanies(search)).map((company) => ({
           id: company.id,
+          usage: company.usage,
           values: { name: company.name },
           cells: [
             <RowName key="name">{company.name}</RowName>,
@@ -345,6 +349,7 @@ async function loadLookupTable(
         fields: [{ ...nameField, placeholder: "e.g. HQ — Floor 2" }],
         rows: (await listLocations(search)).map((location) => ({
           id: location.id,
+          usage: location.usage,
           values: { name: location.name },
           cells: [
             <RowName key="name">{location.name}</RowName>,

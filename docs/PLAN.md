@@ -184,7 +184,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Handover PDF from the user page (optional; HR issues the official act)
 - [x] Dashboard: clickable status tiles, assets by type, recent activity
 - [x] Dashboard "Needs attention": missing in Intune, long in repair, inactive users still holding items
-- [ ] Lookup table management page (admin)
+- [x] Lookup table management page (admin)
 - [ ] CSV export
 
 **Acceptance criterion:** everything done daily in Snipe-IT can be done in the new system.
