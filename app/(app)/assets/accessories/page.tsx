@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AccessoryTable } from "@/components/accessories/accessory-table";
 import { PageHeader } from "@/components/layout/page-header";
+import { ListPage } from "@/components/shared/list-layout";
 import { ListSearch } from "@/components/shared/list-search";
 import { RequirePermission } from "@/components/shared/require-permission";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export default function AccessoriesPage({
   searchParams,
 }: PageProps<"/assets/accessories">) {
   return (
-    <>
+    <ListPage>
       <PageHeader
         title="Accessories"
         description="Counted by quantity: keyboards, mice, headsets and more."
@@ -40,7 +41,7 @@ export default function AccessoriesPage({
       <Suspense fallback={<AccessoryListFallback />}>
         <AccessoryList searchParams={searchParams} />
       </Suspense>
-    </>
+    </ListPage>
   );
 }
 
@@ -54,7 +55,7 @@ async function AccessoryList({
   const accessories = await listAccessories(search);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-col gap-4">
       <ListSearch
         label="Search accessories"
         placeholder="Search by name or category"

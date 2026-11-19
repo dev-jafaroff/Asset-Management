@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { AssetList, AssetListFallback } from "@/components/assets/asset-list";
 import { PageHeader } from "@/components/layout/page-header";
+import { ListPage } from "@/components/shared/list-layout";
 import { RequirePermission } from "@/components/shared/require-permission";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +37,7 @@ export default async function AssetTypePage({
   if (!config) notFound();
 
   return (
-    <>
+    <ListPage>
       <PageHeader
         title={config.label}
         actions={
@@ -59,6 +60,6 @@ export default async function AssetTypePage({
           searchParams={searchParams}
         />
       </Suspense>
-    </>
+    </ListPage>
   );
 }

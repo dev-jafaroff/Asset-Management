@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { ListPage } from "@/components/shared/list-layout";
 import { UserList, UserListFallback } from "@/components/users/user-list";
 
 export const metadata: Metadata = { title: "Users" };
@@ -8,7 +9,7 @@ export const metadata: Metadata = { title: "Users" };
 // People come from Entra ID, so there is no "New user" here.
 export default function UsersPage({ searchParams }: PageProps<"/users">) {
   return (
-    <>
+    <ListPage>
       <PageHeader
         title="Users"
         description="Everyone in the company and what they hold."
@@ -16,6 +17,6 @@ export default function UsersPage({ searchParams }: PageProps<"/users">) {
       <Suspense fallback={<UserListFallback />}>
         <UserList searchParams={searchParams} />
       </Suspense>
-    </>
+    </ListPage>
   );
 }

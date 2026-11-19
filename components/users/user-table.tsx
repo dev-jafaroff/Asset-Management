@@ -4,13 +4,13 @@ import Link from "next/link";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ListTable } from "@/components/shared/list-layout";
 import { useRowNavigation } from "@/hooks/use-row-navigation";
 import type { UserListItem } from "@/lib/users/queries";
 
@@ -36,53 +36,51 @@ export function UserTable({ users }: { users: UserRow[] }) {
   const getRowLinkProps = useRowNavigation();
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Job title</TableHead>
-            <TableHead className="text-right">Assets</TableHead>
-            <TableHead className="text-right">Accessories</TableHead>
-          </TableRow>
-        </TableHeader>
+    <ListTable>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Department</TableHead>
+          <TableHead>Job title</TableHead>
+          <TableHead className="text-right">Assets</TableHead>
+          <TableHead className="text-right">Accessories</TableHead>
+        </TableRow>
+      </TableHeader>
 
-        <TableBody>
-          {users.map((user) => {
-            const { href } = user;
+      <TableBody>
+        {users.map((user) => {
+          const { href } = user;
 
-            return (
-              <TableRow
-                key={user.id}
-                className="cursor-pointer"
-                {...getRowLinkProps(href)}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <UserAvatar name={user.displayName} />
-                    <Link
-                      href={href}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {user.displayName}
-                    </Link>
-                    {!user.isActive && <Badge variant="secondary">Left</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {user.email}
-                </TableCell>
-                <TableCell>{orDash(user.department)}</TableCell>
-                <TableCell>{orDash(user.jobTitle)}</TableCell>
-                <CountCell count={user._count.assignedAssets} />
-                <CountCell count={user.heldAccessories} />
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+          return (
+            <TableRow
+              key={user.id}
+              className="cursor-pointer"
+              {...getRowLinkProps(href)}
+            >
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <UserAvatar name={user.displayName} />
+                  <Link
+                    href={href}
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {user.displayName}
+                  </Link>
+                  {!user.isActive && <Badge variant="secondary">Left</Badge>}
+                </div>
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {user.email}
+              </TableCell>
+              <TableCell>{orDash(user.department)}</TableCell>
+              <TableCell>{orDash(user.jobTitle)}</TableCell>
+              <CountCell count={user._count.assignedAssets} />
+              <CountCell count={user.heldAccessories} />
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </ListTable>
   );
 }
