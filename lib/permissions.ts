@@ -3,6 +3,8 @@ import type { Role } from "@/lib/generated/prisma/enums";
 // Everything a role can be allowed to do. VIEWER only reads.
 const permissionRoles = {
   "asset:edit": ["ADMIN", "EDITOR"],
+  // Categories, models, companies, locations and statuses.
+  "lookup:manage": ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof permissionRoles;

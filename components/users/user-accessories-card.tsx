@@ -7,7 +7,7 @@ import {
   ReturnAccessoryDialog,
   ReturnAllAccessoriesDialog,
 } from "@/components/accessories/return-accessory-dialog";
-import { AccessoryIcon } from "@/components/assets/asset-icons";
+import { CategoryIcon } from "@/components/assets/asset-icons";
 import { DateTime } from "@/components/shared/date-time";
 import {
   Card,
@@ -90,7 +90,7 @@ export function UserAccessoriesCard({
                       href={getAccessoryPath(held.accessory.id)}
                       className="flex w-fit items-center gap-2 font-medium text-primary hover:underline"
                     >
-                      <AccessoryIcon iconKey={held.accessory.category.icon} />
+                      <CategoryIcon iconKey={held.accessory.category.icon} />
                       {held.accessory.name}
                     </Link>
                   </TableCell>

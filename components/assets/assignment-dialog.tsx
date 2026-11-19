@@ -34,11 +34,15 @@ export type AssignmentSubmit<Values> = (
 type AssignmentDialogProps = {
   triggerLabel: string;
   triggerIcon: LucideIcon;
+  // "default" for the main action of a page, e.g. "Add category".
+  triggerVariant?: "default" | "outline" | "ghost";
   // e.g. while the selection cannot be checked out as one.
   disabled?: boolean;
   title: string;
   description: ReactNode;
   submitLabel: string;
+  // "destructive" when the dialog removes something, e.g. Delete.
+  submitVariant?: "default" | "destructive";
   // Accessory handouts keep no note, so their dialogs leave it out.
   withNote?: boolean;
   notePlaceholder?: string;
@@ -58,10 +62,12 @@ type AssignmentDialogProps = {
 export function AssignmentDialog({
   triggerLabel,
   triggerIcon: TriggerIcon,
+  triggerVariant = "outline",
   disabled,
   title,
   description,
   submitLabel,
+  submitVariant = "default",
   withNote = true,
   notePlaceholder = "Optional, e.g. Charger and bag handed over",
   onOpen,
@@ -107,7 +113,7 @@ export function AssignmentDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         disabled={disabled}
-        render={<Button variant="outline" size="sm" />}
+        render={<Button variant={triggerVariant} size="sm" />}
       >
         <TriggerIcon aria-hidden />
         {triggerLabel}
@@ -160,7 +166,7 @@ export function AssignmentDialog({
             <DialogClose render={<Button variant="ghost" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" variant={submitVariant} disabled={isSaving}>
               {isSaving ? "Saving…" : submitLabel}
             </Button>
           </DialogFooter>
