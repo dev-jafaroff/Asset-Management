@@ -1,6 +1,8 @@
+import type { FormOption } from "@/lib/assets/asset-form-options";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { StatusType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
+import { lookupSlugs, type LookupSlug } from "@/lib/schemas/lookup";
 import { formatCount } from "@/lib/utils";
 
 // The admin page of the small tables that assets point to: categories,
@@ -9,27 +11,35 @@ import { formatCount } from "@/lib/utils";
 export const LOOKUPS_PATH = "/admin/lookups";
 export const LOOKUP_TAB_PARAM = "table";
 
-export type LookupSlug =
-  "categories" | "models" | "companies" | "locations" | "statuses";
+// `noun` names one row, e.g. "New category".
+type LookupTab = { slug: LookupSlug; label: string; noun: string };
 
-type LookupTab = { slug: LookupSlug; label: string };
+const lookupTabLabels: Record<LookupSlug, Omit<LookupTab, "slug">> = {
+  statuses: { label: "Statuses", noun: "status" },
+  models: { label: "Models", noun: "model" },
+  categories: { label: "Categories", noun: "category" },
+  companies: { label: "Companies", noun: "company" },
+  locations: { label: "Locations", noun: "location" },
+};
 
-// The first tab is the default.
-const lookupTabs: LookupTab[] = [
-  { slug: "categories", label: "Categories" },
-  { slug: "models", label: "Models" },
-  { slug: "companies", label: "Companies" },
-  { slug: "locations", label: "Locations" },
-  { slug: "statuses", label: "Statuses" },
-];
+// In the order of lookupSlugs; the first tab is the default.
+const lookupTabs: LookupTab[] = lookupSlugs.map((slug) => ({
+  slug,
+  ...lookupTabLabels[slug],
+}));
 
-// What each kind of status means for an asset, e.g. on the Statuses tab.
+// What each type of status means for an asset, e.g. "Deployable".
 export const statusTypeLabels: Record<StatusType, string> = {
-  DEPLOYABLE: "Ready to hand out",
+  DEPLOYABLE: "Deployable",
   PENDING: "Pending",
-  UNDEPLOYABLE: "Out of use",
+  UNDEPLOYABLE: "Undeployable",
   ARCHIVED: "Archived",
 };
+
+// The types a status dialog offers, in the order above.
+export const statusTypeOptions = Object.entries(statusTypeLabels).map(
+  ([value, label]) => ({ value, label }),
+);
 
 function searchTerms(search?: string) {
   return (search?.split(/\s+/).filter(Boolean) ?? []).map((term) => ({
@@ -149,6 +159,7 @@ export async function listModels(search?: string) {
   });
   return models.map(({ _count, ...model }) => ({
     ...model,
+    assetCount: _count.assets,
     usage: describeUsage([_count.assets, "asset"]),
   }));
 }
@@ -161,6 +172,7 @@ export async function listCompanies(search?: string) {
   });
   return companies.map(({ _count, ...company }) => ({
     ...company,
+    assetCount: _count.assets,
     usage: describeUsage([_count.assets, "asset"]),
   }));
 }
@@ -173,6 +185,7 @@ export async function listLocations(search?: string) {
   });
   return locations.map(({ _count, ...location }) => ({
     ...location,
+    assetCount: _count.assets,
     usage: describeUsage([_count.assets, "asset"]),
   }));
 }
@@ -192,6 +205,22 @@ export async function listStatuses(search?: string) {
   });
   return statuses.map(({ _count, ...status }) => ({
     ...status,
+    assetCount: _count.assets,
     usage: describeUsage([_count.assets, "asset"]),
+  }));
+}
+
+// ─── Dialog options ──────────────────────────────────────────────────────────
+
+// Categories a model can be in: those without accessories, e.g. Laptop.
+export async function listModelCategoryOptions(): Promise<FormOption[]> {
+  const categories = await prisma.category.findMany({
+    where: { accessories: { none: {} } },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  return categories.map((category) => ({
+    value: category.id,
+    label: category.name,
   }));
 }

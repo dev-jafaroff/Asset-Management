@@ -34,6 +34,8 @@ export type AssignmentSubmit<Values> = (
 type AssignmentDialogProps = {
   triggerLabel: string;
   triggerIcon: LucideIcon;
+  // "default" for the main action of a page, e.g. "Add category".
+  triggerVariant?: "default" | "outline" | "ghost";
   // e.g. while the selection cannot be checked out as one.
   disabled?: boolean;
   title: string;
@@ -58,6 +60,7 @@ type AssignmentDialogProps = {
 export function AssignmentDialog({
   triggerLabel,
   triggerIcon: TriggerIcon,
+  triggerVariant = "outline",
   disabled,
   title,
   description,
@@ -107,7 +110,7 @@ export function AssignmentDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         disabled={disabled}
-        render={<Button variant="outline" size="sm" />}
+        render={<Button variant={triggerVariant} size="sm" />}
       >
         <TriggerIcon aria-hidden />
         {triggerLabel}

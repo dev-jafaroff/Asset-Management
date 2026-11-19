@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AccessoryIcon } from "@/components/assets/asset-icons";
+import { CategoryIcon } from "@/components/assets/asset-icons";
 import { Badge } from "@/components/ui/badge";
 import {
   TableBody,
@@ -52,7 +52,7 @@ export function AccessoryTable({
                   href={href}
                   className="flex w-fit items-center gap-2 font-medium text-primary hover:underline"
                 >
-                  <AccessoryIcon iconKey={accessory.category.icon} />
+                  <CategoryIcon iconKey={accessory.category.icon} />
                   {accessory.name}
                 </Link>
               </TableCell>

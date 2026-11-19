@@ -1,27 +1,70 @@
 import {
   ArrowDownToLine,
+  Battery,
+  BatteryCharging,
   Cable,
+  Calculator,
   Cctv,
+  Cpu,
+  CreditCard,
   Dock,
+  DoorClosed,
+  EthernetPort,
+  Fingerprint,
+  Gamepad2,
+  HardDrive,
+  Headphones,
   Headset,
+  IdCard,
+  KeyRound,
   Keyboard,
   Laptop,
+  Lightbulb,
+  Lock,
+  MemoryStick,
+  Mic,
   Monitor,
   Mouse,
+  Network,
   Package,
+  PcCase,
+  Phone,
+  Plug,
   PlugZap,
+  Presentation,
   Printer,
+  Projector,
+  QrCode,
+  RadioTower,
+  Router,
+  ScanBarcode,
+  ScanLine,
   Server,
   Shapes,
+  Shredder,
   Smartphone,
+  Speaker,
+  Tablet,
+  Thermometer,
+  Toolbox,
+  Tv,
+  Usb,
+  Video,
+  Watch,
   Webcam,
   Wifi,
+  Wrench,
   createLucideIcon,
   type LucideIcon,
 } from "lucide-react";
 import { IconTile, type IconTileSize } from "@/components/shared/icon-tile";
 import type { IntuneSyncState } from "@/lib/assets/asset-detail";
+import { getAssetTypeConfig } from "@/lib/assets/asset-types";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
+import {
+  getCategoryIconLabel,
+  type CategoryIconKey,
+} from "@/lib/schemas/lookup";
 import { cn } from "@/lib/utils";
 
 // Icon registry: the one place that decides which icon an asset type uses
@@ -39,21 +82,73 @@ export const assetTypeIcons: Record<AssetType, LucideIcon> = {
   OTHER: Shapes,
 };
 
-// Accessory categories pick their icon by key (Category.icon), since
-// categories live in the database and can be renamed.
-const accessoryIcons: Partial<Record<string, LucideIcon>> = {
+// Categories pick their icon by key (Category.icon), since categories live
+// in the database and can be renamed. The keys an admin can pick are listed
+// in lib/schemas/lookup.ts.
+const categoryIcons: Record<CategoryIconKey, LucideIcon> = {
+  laptop: Laptop,
+  desktop: PcCase,
+  monitor: Monitor,
+  tablet: Tablet,
+  phone: Smartphone,
+  server: Server,
+  "hard-drive": HardDrive,
+  chip: Cpu,
   keyboard: Keyboard,
   mouse: Mouse,
   headset: Headset,
-  dock: Dock,
-  cable: Cable,
+  headphones: Headphones,
   webcam: Webcam,
+  dock: Dock,
+  printer: Printer,
+  scanner: ScanLine,
+  "barcode-scanner": ScanBarcode,
+  shredder: Shredder,
+  calculator: Calculator,
+  "access-point": Wifi,
+  router: Router,
+  switch: Network,
+  ethernet: EthernetPort,
+  antenna: RadioTower,
+  camera: Cctv,
+  "video-camera": Video,
+  projector: Projector,
+  tv: Tv,
+  speaker: Speaker,
+  microphone: Mic,
+  conference: Presentation,
+  "card-reader": IdCard,
+  "payment-card": CreditCard,
+  fingerprint: Fingerprint,
+  lock: Lock,
+  key: KeyRound,
+  door: DoorClosed,
+  "qr-code": QrCode,
   charger: PlugZap,
+  cable: Cable,
+  plug: Plug,
+  battery: Battery,
+  ups: BatteryCharging,
+  usb: Usb,
+  "memory-stick": MemoryStick,
+  "desk-phone": Phone,
+  watch: Watch,
+  gamepad: Gamepad2,
+  thermometer: Thermometer,
+  lightbulb: Lightbulb,
+  tools: Wrench,
+  toolbox: Toolbox,
+  package: Package,
+  other: Shapes,
 };
 
+function isCategoryIconKey(key: string): key is CategoryIconKey {
+  return Object.hasOwn(categoryIcons, key);
+}
+
 // A category without a known key gets a plain box.
-function getAccessoryIcon(key: string | null): LucideIcon {
-  return (key === null ? undefined : accessoryIcons[key]) ?? Package;
+function getCategoryIcon(key: string | null): LucideIcon {
+  return key !== null && isCategoryIconKey(key) ? categoryIcons[key] : Package;
 }
 
 // Rounder cloud than lucide's, as in the design mockups.
@@ -107,15 +202,27 @@ type AssetTypeIconProps = {
 };
 
 export function AssetTypeIcon({ type, size }: AssetTypeIconProps) {
-  return <IconTile icon={assetTypeIcons[type]} size={size} />;
+  return (
+    <IconTile
+      icon={assetTypeIcons[type]}
+      size={size}
+      label={getAssetTypeConfig(type).singularLabel}
+    />
+  );
 }
 
-type AccessoryIconProps = {
+type CategoryIconProps = {
   // The category's icon key, e.g. "keyboard".
   iconKey: string | null;
   size?: IconTileSize;
 };
 
-export function AccessoryIcon({ iconKey, size }: AccessoryIconProps) {
-  return <IconTile icon={getAccessoryIcon(iconKey)} size={size} />;
+export function CategoryIcon({ iconKey, size }: CategoryIconProps) {
+  return (
+    <IconTile
+      icon={getCategoryIcon(iconKey)}
+      size={size}
+      label={getCategoryIconLabel(iconKey)}
+    />
+  );
 }

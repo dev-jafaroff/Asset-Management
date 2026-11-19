@@ -67,14 +67,15 @@ const locations = [
   "Warehouse",
 ];
 
+// Icons are keys of components/assets/asset-icons.tsx.
 const assetCategories = [
-  "Laptop",
-  "Desktop",
-  "Monitor",
-  "Printer",
-  "Phone",
-  "Access point",
-  "Camera",
+  { name: "Laptop", icon: "laptop" },
+  { name: "Desktop", icon: "desktop" },
+  { name: "Monitor", icon: "monitor" },
+  { name: "Printer", icon: "printer" },
+  { name: "Phone", icon: "phone" },
+  { name: "Access point", icon: "access-point" },
+  { name: "Camera", icon: "camera" },
 ];
 
 const assetModels: {
@@ -341,8 +342,12 @@ async function createLocations(tx: Tx): Promise<number[]> {
 }
 
 async function createModels(tx: Tx): Promise<Map<AssetType, ModelRef[]>> {
-  for (const name of assetCategories) {
-    await tx.category.upsert({ where: { name }, update: {}, create: { name } });
+  for (const category of assetCategories) {
+    await tx.category.upsert({
+      where: { name: category.name },
+      update: {},
+      create: category,
+    });
   }
   const categories = await tx.category.findMany({
     select: { id: true, name: true },

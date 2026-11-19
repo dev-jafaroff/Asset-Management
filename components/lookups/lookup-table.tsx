@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { saveLookup } from "@/app/(app)/admin/lookups/actions";
+import { LookupDialog } from "@/components/lookups/lookup-dialog";
 import { ListTable } from "@/components/shared/list-layout";
 import {
   TableBody,
@@ -7,36 +9,53 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { LookupUsage } from "@/lib/lookups/queries";
-import { cn } from "@/lib/utils";
+import type {
+  LookupField,
+  LookupSlug,
+  LookupValues,
+} from "@/lib/schemas/lookup";
 
-export type LookupColumn = { label: string; align?: "right" };
+// e.g. { label: "Assets", className: "text-right" }; the class goes on the
+// header and on every cell of the column.
+export type LookupColumn = { label: string; className?: string };
 
-// One row: its own cells, in the order of the columns, then where it is used.
-export type LookupRow = { id: number; cells: ReactNode[]; usage: LookupUsage };
+// One row: its cells in the order of the columns, and what its edit dialog
+// starts with.
+export type LookupRow = {
+  id: number;
+  cells: ReactNode[];
+  values: LookupValues;
+};
 
-// The table of one lookup tab. Every tab ends with "Used by", which also
-// says whether a row can be deleted.
+// The dialog of a tab: what one row is called and the fields it has.
+export type LookupForm = {
+  slug: LookupSlug;
+  noun: string;
+  fields: LookupField[];
+};
+
+// The table of one lookup tab, with Edit at the end of each row.
 export function LookupTable({
   columns,
   rows,
+  form,
 }: {
   columns: LookupColumn[];
   rows: LookupRow[];
+  form: LookupForm;
 }) {
   return (
     <ListTable>
       <TableHeader>
         <TableRow>
           {columns.map((column) => (
-            <TableHead
-              key={column.label}
-              className={cn(column.align === "right" && "text-right")}
-            >
+            <TableHead key={column.label} className={column.className}>
               {column.label}
             </TableHead>
           ))}
-          <TableHead>Used by</TableHead>
+          <TableHead className="w-px">
+            <span className="sr-only">Actions</span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -45,18 +64,18 @@ export function LookupTable({
             {row.cells.map((cell, index) => (
               <TableCell
                 key={columns[index].label}
-                className={cn(
-                  index === 0 && "font-medium",
-                  columns[index].align === "right" && "text-right",
-                )}
+                className={columns[index].className}
               >
                 {cell}
               </TableCell>
             ))}
-            <TableCell
-              className={cn(!row.usage.inUse && "text-muted-foreground")}
-            >
-              {row.usage.label}
+            <TableCell className="text-right">
+              <LookupDialog
+                noun={form.noun}
+                fields={form.fields}
+                values={row.values}
+                onSave={saveLookup.bind(null, form.slug, row.id)}
+              />
             </TableCell>
           </TableRow>
         ))}
