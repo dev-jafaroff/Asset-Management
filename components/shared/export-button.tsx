@@ -1,7 +1,7 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const EXPORT_HINT = "Download as a CSV file for Excel";
+const EXPORT_HINT = "Download as an Excel file";
 
 // Downloads a list as it is shown: `href` is the list's export route with
 // the list's params (tab, search, filters).

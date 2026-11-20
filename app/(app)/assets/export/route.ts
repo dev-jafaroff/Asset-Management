@@ -7,7 +7,7 @@ import {
 import { loadAssetExport } from "@/lib/assets/export";
 import { listStatusLabels, parseAssetListParams } from "@/lib/assets/queries";
 import { buildStatusTabs, findStatusTab } from "@/lib/assets/status-filters";
-import { exportCsv } from "@/lib/export/csv";
+import { exportXlsx } from "@/lib/export/xlsx";
 import { getParam } from "@/lib/search-params";
 
 // An asset list as it is shown: ?type=pcs (none on "All assets") and the
@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { search, filters, statusSlug } = parseAssetListParams(params);
-  return exportCsv(config?.slug ?? "assets", async () => {
+  const file = config
+    ? { name: config.slug, sheet: config.label }
+    : { name: "assets", sheet: "All assets" };
+  return exportXlsx(file, async () => {
     const tabs = buildStatusTabs(await listStatusLabels());
     return loadAssetExport({
       type: config?.type,
@@ -41,5 +44,7 @@ export async function POST(request: NextRequest) {
     .map(Number)
     .filter((id) => Number.isInteger(id) && id > 0);
 
-  return exportCsv("assets", () => loadAssetExport({ ids }));
+  return exportXlsx({ name: "assets", sheet: "Selected assets" }, () =>
+    loadAssetExport({ ids }),
+  );
 }
