@@ -25,6 +25,28 @@ export function formatDateTime(date: Date): string {
   return dateTimeFormat.format(date);
 }
 
+// Year first, so files (e.g. CSV exports) sort by date as text.
+const sortableDateFormat = new Intl.DateTimeFormat("sv-SE", {
+  dateStyle: "short",
+  timeZone: APP_TIME_ZONE,
+});
+
+const sortableDateTimeFormat = new Intl.DateTimeFormat("sv-SE", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: APP_TIME_ZONE,
+});
+
+// formatSortableDate(date) → "2025-03-14"
+export function formatSortableDate(date: Date): string {
+  return sortableDateFormat.format(date);
+}
+
+// formatSortableDateTime(date) → "2026-11-02 09:14"
+export function formatSortableDateTime(date: Date): string {
+  return sortableDateTimeFormat.format(date);
+}
+
 const relativeTimeFormat = new Intl.RelativeTimeFormat(APP_LOCALE, {
   numeric: "auto",
 });

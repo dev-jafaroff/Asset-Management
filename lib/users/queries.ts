@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { getPositiveIntParam } from "@/lib/search-params";
 
 export const USERS_PATH = "/users";
+// CSV download of the list, with the same params as the list.
+export const USERS_EXPORT_PATH = `${USERS_PATH}/export`;
 
 // e.g. "/users/12"
 export function getUserPath(id: number): string {
@@ -48,7 +50,11 @@ export const holdsItemsWhere = {
 
 export const USER_TAB_PARAM = "status";
 
-type UserTab = { slug: string; label: string; where: Prisma.UserWhereInput };
+export type UserTab = {
+  slug: string;
+  label: string;
+  where: Prisma.UserWhereInput;
+};
 
 // The first tab is the default. "Holding items" is for offboarding: people
 // who still have something, whether they left or not.
@@ -99,6 +105,11 @@ export async function listUserTabsWithCounts(
 // The tab of the URL param; anything unknown is the first (Active).
 export function findUserTab<T extends UserTab>(tabs: T[], slug?: string): T {
   return tabs.find((tab) => tab.slug === slug) ?? tabs[0];
+}
+
+// The tab of the URL param, without counts, e.g. for an export.
+export function getUserTab(slug?: string): UserTab {
+  return findUserTab(userTabs, slug);
 }
 
 // The default tab has no param, so the plain URL stays clean.

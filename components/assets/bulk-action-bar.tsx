@@ -19,9 +19,14 @@ import {
   handleBulkResult,
   type BulkOutcome,
 } from "@/components/shared/bulk-outcome";
+import { ExportSelectedButton } from "@/components/shared/export-button";
 import { Button } from "@/components/ui/button";
 import type { BulkActionOptions } from "@/lib/assets/asset-form-options";
-import { getAssetTypeConfig } from "@/lib/assets/asset-types";
+import {
+  ASSET_EXPORT_ID_FIELD,
+  ASSET_EXPORT_PATH,
+  getAssetTypeConfig,
+} from "@/lib/assets/asset-types";
 import type { BulkActionResult } from "@/lib/assets/bulk-actions";
 import type { AssetListItem } from "@/lib/assets/queries";
 import type { CheckoutValues, StatusChangeValues } from "@/lib/schemas/asset";
@@ -115,6 +120,11 @@ export function BulkActionBar({
         title={`Change the status of ${count}`}
         statuses={options.statuses}
         onSubmit={submitWith(bulkChangeStatus, "Updated")}
+      />
+      <ExportSelectedButton
+        action={ASSET_EXPORT_PATH}
+        field={ASSET_EXPORT_ID_FIELD}
+        ids={assetIds}
       />
 
       <Button variant="ghost" size="sm" onClick={onClear}>
