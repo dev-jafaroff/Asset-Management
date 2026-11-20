@@ -1,4 +1,5 @@
 import { StatusTabs } from "@/components/assets/status-tabs";
+import { ExportButton } from "@/components/shared/export-button";
 import { ListSearch } from "@/components/shared/list-search";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserTable } from "@/components/users/user-table";
@@ -15,6 +16,7 @@ import {
   listUserTabsWithCounts,
   toUserTabParam,
   USER_TAB_PARAM,
+  USERS_EXPORT_PATH,
   USERS_PATH,
 } from "@/lib/users/queries";
 
@@ -42,6 +44,7 @@ export async function UserList({
 
       <StatusTabs
         activeSlug={activeTab.slug}
+        actions={<ExportButton href={buildHref(USERS_EXPORT_PATH, params)} />}
         tabs={tabs.map((tab) => ({
           slug: tab.slug,
           label: tab.label,

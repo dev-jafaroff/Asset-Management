@@ -2,15 +2,24 @@ import { AssetFilters } from "@/components/assets/asset-filters";
 import { AssetTable } from "@/components/assets/asset-table";
 import { ColumnMenu } from "@/components/assets/column-menu";
 import { StatusTabs } from "@/components/assets/status-tabs";
+import { ExportButton } from "@/components/shared/export-button";
 import { ListSearch } from "@/components/shared/list-search";
 import { Skeleton } from "@/components/ui/skeleton";
-import { parseAssetFilters } from "@/lib/assets/asset-filters";
 import {
   getBulkActionOptions,
   type BulkActionOptions,
 } from "@/lib/assets/asset-form-options";
-import { assignTargets, getAssetTypeConfig } from "@/lib/assets/asset-types";
-import { listAssets, listStatusTabsWithCounts } from "@/lib/assets/queries";
+import {
+  ASSET_EXPORT_PATH,
+  ASSET_EXPORT_TYPE_PARAM,
+  assignTargets,
+  getAssetTypeConfig,
+} from "@/lib/assets/asset-types";
+import {
+  listAssets,
+  listStatusTabsWithCounts,
+  parseAssetListParams,
+} from "@/lib/assets/queries";
 import {
   findStatusTab,
   STATUS_PARAM,
@@ -19,12 +28,7 @@ import {
 import { getCurrentUser } from "@/lib/current-user";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { can } from "@/lib/permissions";
-import {
-  buildHref,
-  getParam,
-  SEARCH_PARAM,
-  type SearchParams,
-} from "@/lib/search-params";
+import { buildHref, type SearchParams } from "@/lib/search-params";
 
 type AssetListProps = {
   // Omitted on "All assets".
@@ -60,12 +64,11 @@ export async function AssetList({
   searchParams,
 }: AssetListProps) {
   const params = await searchParams;
-  const search = getParam(params, SEARCH_PARAM);
-  const filters = parseAssetFilters(params);
+  const { search, filters, statusSlug } = parseAssetListParams(params);
 
   // Tab counts follow the search and filters, so they show where the matches are.
   const tabs = await listStatusTabsWithCounts({ type, search, filters });
-  const activeTab = findStatusTab(tabs, getParam(params, STATUS_PARAM));
+  const activeTab = findStatusTab(tabs, statusSlug);
 
   const [assets, bulkOptions] = await Promise.all([
     listAssets({ type, search, filters, status: activeTab.where }),
@@ -90,7 +93,17 @@ export async function AssetList({
 
       <StatusTabs
         activeSlug={activeTab.slug}
-        actions={<ColumnMenu type={type} />}
+        actions={
+          <div className="flex gap-2">
+            <ExportButton
+              href={buildHref(ASSET_EXPORT_PATH, params, {
+                [ASSET_EXPORT_TYPE_PARAM]:
+                  type && getAssetTypeConfig(type).slug,
+              })}
+            />
+            <ColumnMenu type={type} />
+          </div>
+        }
         tabs={tabs.map((tab) => ({
           slug: tab.slug,
           label: tab.label,

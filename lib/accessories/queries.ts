@@ -9,6 +9,8 @@ import { getPositiveIntParam } from "@/lib/search-params";
 
 export const ACCESSORIES_PATH = `${ASSETS_PATH}/accessories`;
 export const NEW_ACCESSORY_PATH = `${ACCESSORIES_PATH}/new`;
+// CSV download of the list, with the list's search.
+export const ACCESSORIES_EXPORT_PATH = `${ACCESSORIES_PATH}/export`;
 
 // e.g. "/assets/accessories/3"
 export function getAccessoryPath(id: number): string {

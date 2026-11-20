@@ -3,12 +3,18 @@ import { Prisma } from "@/lib/generated/prisma/client";
 import { assetTypeConfigs } from "@/lib/assets/asset-types";
 import {
   buildAssetFilterWhere,
+  parseAssetFilters,
   type AssetFilterValues,
 } from "@/lib/assets/asset-filters";
 import { getAssetDisplayName } from "@/lib/assets/format";
-import { buildStatusTabs, type StatusTab } from "@/lib/assets/status-filters";
+import {
+  buildStatusTabs,
+  STATUS_PARAM,
+  type StatusTab,
+} from "@/lib/assets/status-filters";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
+import { getParam, SEARCH_PARAM, type SearchParams } from "@/lib/search-params";
 
 export const assetListSelect = {
   id: true,
@@ -51,7 +57,19 @@ export type AssetListFilter = {
   search?: string;
   // Dropdown filters (see lib/assets/asset-filters.ts).
   filters?: AssetFilterValues;
+  // Only these assets, e.g. the rows selected in a list.
+  ids?: number[];
 };
+
+// What a list URL asks for: the search, the dropdown filters and the slug
+// of the status tab. The list page and its export read it the same way.
+export function parseAssetListParams(params: SearchParams) {
+  return {
+    search: getParam(params, SEARCH_PARAM),
+    filters: parseAssetFilters(params),
+    statusSlug: getParam(params, STATUS_PARAM),
+  };
+}
 
 // Fields one search word is matched against.
 function matchSearchTerm(term: string): Prisma.AssetWhereInput {
@@ -86,6 +104,7 @@ function buildWhere(filter: AssetListFilter): Prisma.AssetWhereInput {
       filter.status ?? {},
       buildSearchWhere(filter.search),
       buildAssetFilterWhere(filter.filters),
+      filter.ids ? { id: { in: filter.ids } } : {},
     ],
   };
 }
@@ -119,6 +138,11 @@ export async function listStatusTabsWithCounts(
 // and the dashboard share one set of queries per request.
 export const getStatusCounts = cache(() => listStatusTabsWithCounts());
 
+const assetListOrder = [
+  { assetTag: "asc" },
+  { id: "asc" },
+] satisfies Prisma.AssetOrderByWithRelationInput[];
+
 // Every matching asset: lists show them all on one page, so a selection can
 // take any of them (e.g. two PCs far apart in the list, checked out at once).
 export async function listAssets(
@@ -127,7 +151,30 @@ export async function listAssets(
   return prisma.asset.findMany({
     where: buildWhere(filter),
     select: assetListSelect,
-    orderBy: [{ assetTag: "asc" }, { id: "asc" }],
+    orderBy: assetListOrder,
+  });
+}
+
+// Everything the list has, plus what only a file needs.
+const assetExportSelect = {
+  ...assetListSelect,
+  purchaseDate: true,
+  purchaseCost: true,
+  createdAt: true,
+} satisfies Prisma.AssetSelect;
+
+export type AssetExportItem = Prisma.AssetGetPayload<{
+  select: typeof assetExportSelect;
+}>;
+
+// The same assets as listAssets, in the same order, for a CSV export.
+export async function listAssetsForExport(
+  filter: AssetListFilter,
+): Promise<AssetExportItem[]> {
+  return prisma.asset.findMany({
+    where: buildWhere(filter),
+    select: assetExportSelect,
+    orderBy: assetListOrder,
   });
 }
 

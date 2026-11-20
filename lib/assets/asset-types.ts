@@ -87,6 +87,12 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
 
 export const ASSETS_PATH = "/assets";
 
+// CSV download of asset lists; ?type=pcs narrows it to one type.
+export const ASSET_EXPORT_PATH = `${ASSETS_PATH}/export`;
+export const ASSET_EXPORT_TYPE_PARAM = "type";
+// Field of the form that exports selected assets, sent once per asset.
+export const ASSET_EXPORT_ID_FIELD = "id";
+
 // List page of one asset type, e.g. "/assets/pcs".
 export function getAssetTypePath(slug: string): string {
   return `${ASSETS_PATH}/${slug}`;

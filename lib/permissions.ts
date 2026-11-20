@@ -5,6 +5,8 @@ const permissionRoles = {
   "asset:edit": ["ADMIN", "EDITOR"],
   // Categories, models, companies, locations and statuses.
   "lookup:manage": ["ADMIN"],
+  // Downloading a list as a file: anyone who can see the list.
+  "list:export": ["ADMIN", "EDITOR", "VIEWER"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof permissionRoles;
