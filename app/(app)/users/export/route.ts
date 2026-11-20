@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { exportCsv, type CsvColumn } from "@/lib/export/csv";
+import { exportXlsx, type ExportColumn } from "@/lib/export/xlsx";
 import { getParam, SEARCH_PARAM } from "@/lib/search-params";
 import {
   getUserTab,
@@ -8,7 +8,7 @@ import {
   type UserListItem,
 } from "@/lib/users/queries";
 
-const userColumns: CsvColumn<UserListItem>[] = [
+const userColumns: ExportColumn<UserListItem>[] = [
   { header: "Name", value: (user) => user.displayName },
   { header: "Email", value: (user) => user.email },
   { header: "Department", value: (user) => user.department },
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   const tab = getUserTab(getParam(params, USER_TAB_PARAM));
   const search = getParam(params, SEARCH_PARAM);
 
-  return exportCsv("users", async () => ({
+  return exportXlsx({ name: "users", sheet: "Users" }, async () => ({
     columns: userColumns,
     rows: await listUsers({ tab, search }),
   }));

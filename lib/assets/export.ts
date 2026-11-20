@@ -10,11 +10,10 @@ import {
   type AssetExportItem,
   type AssetListFilter,
 } from "@/lib/assets/queries";
-import type { CsvColumn, CsvTable } from "@/lib/export/csv";
+import type { ExportColumn, ExportTable } from "@/lib/export/xlsx";
 import type { AssetType } from "@/lib/generated/prisma/enums";
-import { formatSortableDate, formatSortableDateTime } from "@/lib/utils";
 
-type AssetExportColumn = CsvColumn<AssetExportItem> & {
+type AssetExportColumn = ExportColumn<AssetExportItem> & {
   // Exported for the types whose form has this field, e.g. IMEI for phones,
   // and for any other type when an asset has a value in it, e.g. the OS of
   // a PC synced from Intune. Columns without one are always exported.
@@ -67,20 +66,20 @@ const assetExportColumns: AssetExportColumn[] = [
   },
   fieldColumn("companyId", (asset) => asset.company?.name),
   fieldColumn("locationId", (asset) => asset.location?.name),
-  fieldColumn(
-    "purchaseDate",
-    // A plain date, stored as midnight UTC: the same day in Baku.
-    (asset) => asset.purchaseDate && formatSortableDate(asset.purchaseDate),
-  ),
-  fieldColumn("purchaseCost", (asset) => asset.purchaseCost?.toNumber()),
-  fieldColumn("notes", (asset) => asset.notes),
   {
-    header: "Added",
-    value: (asset) => formatSortableDateTime(asset.createdAt),
+    ...fieldColumn("purchaseDate", (asset) => asset.purchaseDate),
+    format: "date",
   },
   {
+    ...fieldColumn("purchaseCost", (asset) => asset.purchaseCost?.toNumber()),
+    format: "money",
+  },
+  fieldColumn("notes", (asset) => asset.notes),
+  { header: "Added", value: (asset) => asset.createdAt, format: "dateTime" },
+  {
     header: "Last changed",
-    value: (asset) => formatSortableDateTime(asset.updatedAt),
+    value: (asset) => asset.updatedAt,
+    format: "dateTime",
   },
 ];
 
@@ -129,7 +128,7 @@ function getAssetExportColumns(
 // The assets of an export, with their columns.
 export async function loadAssetExport(
   filter: AssetListFilter,
-): Promise<CsvTable<AssetExportItem>> {
+): Promise<ExportTable<AssetExportItem>> {
   const assets = await listAssetsForExport(filter);
   return {
     columns: getAssetExportColumns(assets, filter.type),

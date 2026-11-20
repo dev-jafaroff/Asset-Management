@@ -3,10 +3,10 @@ import {
   listAccessories,
   type AccessoryListItem,
 } from "@/lib/accessories/queries";
-import { exportCsv, type CsvColumn } from "@/lib/export/csv";
+import { exportXlsx, type ExportColumn } from "@/lib/export/xlsx";
 import { getParam, SEARCH_PARAM } from "@/lib/search-params";
 
-const accessoryColumns: CsvColumn<AccessoryListItem>[] = [
+const accessoryColumns: ExportColumn<AccessoryListItem>[] = [
   { header: "Name", value: (accessory) => accessory.name },
   { header: "Category", value: (accessory) => accessory.category.name },
   { header: "Total", value: (accessory) => accessory.stock.total },
@@ -21,8 +21,11 @@ export async function GET(request: NextRequest) {
     SEARCH_PARAM,
   );
 
-  return exportCsv("accessories", async () => ({
-    columns: accessoryColumns,
-    rows: await listAccessories(search),
-  }));
+  return exportXlsx(
+    { name: "accessories", sheet: "Accessories" },
+    async () => ({
+      columns: accessoryColumns,
+      rows: await listAccessories(search),
+    }),
+  );
 }
