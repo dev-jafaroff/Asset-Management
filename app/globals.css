@@ -139,3 +139,16 @@
     @apply font-sans;
   }
 }
+
+/* Printed pages (e.g. handover acts): A4 with room for the browser's header
+   and footer, and backgrounds such as table headers kept. */
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  html {
+    print-color-adjust: exact;
+  }
+}

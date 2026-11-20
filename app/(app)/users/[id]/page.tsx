@@ -1,3 +1,4 @@
+import { Printer } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -9,6 +10,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { CopyButton } from "@/components/shared/copy-button";
 import { DateTime } from "@/components/shared/date-time";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -30,6 +32,7 @@ import {
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
 import { sumQuantity } from "@/lib/schemas/accessory";
+import { getHandoverActPath } from "@/lib/users/handover-acts";
 import {
   getReceivedAt,
   getRouteUser,
@@ -80,6 +83,8 @@ async function UserPageContent({ params }: Pick<UserPageProps, "params">) {
   const user = await getRouteUser(await params);
   const viewer = await getCurrentUser();
   const canEdit = can(viewer.role, "asset:edit");
+  const holdsItems =
+    user.assignedAssets.length > 0 || user.accessories.length > 0;
   const description = [user.jobTitle, user.department]
     .filter(Boolean)
     .join(" · ");
@@ -98,6 +103,27 @@ async function UserPageContent({ params }: Pick<UserPageProps, "params">) {
             <CopyButton value={user.email} label="email" className="-ml-2" />
             {!user.isActive && <Badge variant="secondary">Left</Badge>}
           </>
+        }
+        actions={
+          // The act lists what the person holds, signed on joining or leaving;
+          // the kind is picked on the act. Offboarding is printed while the
+          // person still holds everything, before OAS returns it all.
+          canEdit &&
+          holdsItems && (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link
+                  href={getHandoverActPath(user.id, "onboarding")}
+                  target="_blank"
+                />
+              }
+            >
+              <Printer aria-hidden />
+              Print act
+            </Button>
+          )
         }
       />
 
