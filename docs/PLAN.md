@@ -181,7 +181,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [x] Checkout / checkin dialogs
 - [x] Accessories: stock list, assign / return by quantity
 - [x] Users list and user detail page: all assigned items, "check in all" for offboarding
-- [ ] Handover PDF from the user page (optional; HR issues the official act)
+- [x] Handover act from the user page: onboarding (assignment) and offboarding (handover), printed or saved as PDF from the browser
 - [x] Dashboard: clickable status tiles, assets by type, recent activity
 - [x] Dashboard "Needs attention": missing in Intune, long in repair, inactive users still holding items
 - [x] Lookup table management page (admin)
