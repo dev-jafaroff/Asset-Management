@@ -1,5 +1,5 @@
 import { Suspense, type ReactNode } from "react";
-import type { Role } from "@/lib/current-user";
+import { getCurrentUser } from "@/lib/current-user";
 import { NavGroup } from "./nav-group";
 import {
   isNavGroup,
@@ -67,13 +67,8 @@ function renderSection(section: NavSection, index: number) {
   );
 }
 
-export function SidebarNav({ role }: { role: Role }) {
-  const sections = navSections.filter(
-    (section) => !section.roles || section.roles.includes(role),
-  );
-  // Role-restricted sections (Admin) stay at the bottom, below "By status".
-  const openSections = sections.filter((section) => !section.roles);
-  const restrictedSections = sections.filter((section) => section.roles);
+export function SidebarNav() {
+  const openSections = navSections.filter((section) => !section.roles);
 
   return (
     <nav className="flex flex-1 flex-col gap-4 overflow-y-auto p-2">
@@ -85,7 +80,18 @@ export function SidebarNav({ role }: { role: Role }) {
         </Suspense>
       </SidebarSection>
 
-      {restrictedSections.map(renderSection)}
+      {/* Role-restricted sections (Admin) stay at the bottom, below "By status". */}
+      <Suspense fallback={null}>
+        <RestrictedSections />
+      </Suspense>
     </nav>
   );
+}
+
+// Shown once the person's role is read; the rest of the menu does not wait.
+async function RestrictedSections() {
+  const { role } = await getCurrentUser();
+  return navSections
+    .filter((section) => section.roles?.includes(role))
+    .map(renderSection);
 }

@@ -1,15 +1,16 @@
+import { Suspense } from "react";
 import { SearchForm } from "@/components/shared/search-form";
-import { UserAvatar } from "@/components/shared/user-avatar";
 import { ASSETS_PATH } from "@/lib/assets/asset-types";
-import type { CurrentUser } from "@/lib/current-user";
+import { getCurrentUser } from "@/lib/current-user";
 import { MobileNav } from "./mobile-nav";
 import { SidebarNav } from "./sidebar-nav";
+import { UserMenu, UserMenuFallback } from "./user-menu";
 
-export function AppHeader({ user }: { user: CurrentUser }) {
+export function AppHeader() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 md:gap-4">
       <MobileNav>
-        <SidebarNav role={user.role} />
+        <SidebarNav />
       </MobileNav>
 
       <SearchForm
@@ -19,13 +20,16 @@ export function AppHeader({ user }: { user: CurrentUser }) {
         className="max-w-sm"
       />
 
-      <div className="ml-auto flex items-center gap-2">
-        <div className="hidden text-right leading-tight sm:block">
-          <p className="text-sm font-medium">{user.displayName}</p>
-          <p className="text-xs text-muted-foreground">{user.role}</p>
-        </div>
-        <UserAvatar name={user.displayName} size="lg" />
+      <div className="ml-auto">
+        <Suspense fallback={<UserMenuFallback />}>
+          <SignedInUserMenu />
+        </Suspense>
       </div>
     </header>
   );
+}
+
+// The person is read per request, so the rest of the header does not wait.
+async function SignedInUserMenu() {
+  return <UserMenu user={await getCurrentUser()} />;
 }

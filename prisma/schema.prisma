@@ -107,6 +107,8 @@ model StatusLabel {
 model User {
   id            Int     @id @default(autoincrement())
   entraObjectId String  @unique
+  // The Entra tenant the person belongs to (EIG or Waverity).
+  tenantId      String?
   email         String  @unique
   displayName   String
   department    String?

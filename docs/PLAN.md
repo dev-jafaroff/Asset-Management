@@ -8,7 +8,7 @@ Replace Snipe-IT with a simple, compact internal system tailored to the company'
 
 **In the MVP:**
 
-- SSO with Microsoft Entra ID and roles based on Entra groups
+- SSO with Microsoft Entra ID and roles from Entra app roles
 - Assets by type (PCs, monitors, printers, phones, virtual machines): create, edit, list, search, filter
 - Accessories tracked by quantity (in stock / assigned)
 - Users page: every employee and everything assigned to them (onboarding / offboarding)
@@ -32,7 +32,7 @@ The whole project is written in TypeScript as a single Next.js application: fron
 | Forms          | React Hook Form + Zod                             | Same schema validates both the form and the API                   |
 | Database       | PostgreSQL                                        | Ideal for relational data, managed service available on Azure     |
 | ORM            | Prisma                                            | Typed queries, migrations                                         |
-| Auth           | Auth.js + Microsoft Entra ID provider             | SSO and group-based roles                                         |
+| Auth           | Better Auth + Microsoft Entra ID provider         | SSO, app roles, stateless encrypted-cookie session                |
 | Intune         | Microsoft Graph API (client credentials)          | Background sync without a signed-in user                          |
 | QR             | `qrcode` (generate), `html5-qrcode` (scan)        | Lightweight and runs in the browser                               |
 | Repo and CI/CD | GitHub + GitHub Actions                           | Simple setup, direct deploy to Azure                              |
@@ -48,7 +48,7 @@ All logic runs in one Next.js application; the only external pieces are Entra ID
 
 The sync job and the migration script write their results directly to PostgreSQL.
 
-- **SSO:** Auth.js + Entra ID provider. Roles are read from the `groups` claim in the token; a user is created automatically on first login.
+- **SSO:** Better Auth + Entra ID provider, one multi-tenant app registration for EIG and Waverity; only allow-listed tenants (`AUTH_ALLOWED_TENANT_IDS`) are accepted, no B2B guests. Roles come from the app roles (ADMIN / EDITOR / VIEWER) in the `roles` claim; a person without one cannot sign in. The session is an encrypted cookie that lasts 12 hours and is not extended. The User row is created on first sign-in and kept in step with Entra (name, email, role, tenant).
 - **Roles:** ADMIN manages everything, including lookup tables and sync; EDITOR creates and edits assets and does checkout/checkin; VIEWER can only view.
 - **Intune sync:** Graph with client credentials. Matching by normalized serial; a device removed from Intune is flagged `missingInIntune`, not deleted.
 - **Field ownership:** device name, OS and last sync date belong to Intune and are read-only in the UI; company, location, cost and notes are managed manually.
@@ -84,7 +84,7 @@ The database has 11 tables; at the center are `Asset` and `AssetEvent`, which st
 | `Company`             | Company (DRL, eiLink, EIG)          | name                                                                                                                                                                                                                                                                                                                                           |
 | `Location`            | Office / room                       | name                                                                                                                                                                                                                                                                                                                                           |
 | `StatusLabel`         | Status                              | name, type (DEPLOYABLE / PENDING / UNDEPLOYABLE / ARCHIVED), color                                                                                                                                                                                                                                                                             |
-| `User`                | Employees                           | entraObjectId, email, displayName, department, role (ADMIN / EDITOR / VIEWER)                                                                                                                                                                                                                                                                  |
+| `User`                | Employees                           | entraObjectId, tenantId, email, displayName, department, role (ADMIN / EDITOR / VIEWER)                                                                                                                                                                                                                                                        |
 | `AssetEvent`          | History (immutable log)             | assetId, type (CREATED / UPDATED / CHECKOUT / CHECKIN / SYNC / IMPORTED), actorId, targetUserId, changes (JSON), createdAt                                                                                                                                                                                                                     |
 | `SyncRun`             | Intune sync results                 | startedAt, finishedAt, created, updated, missing, errors (JSON)                                                                                                                                                                                                                                                                                |
 | `Accessory`           | Accessory stock item                | name, categoryId, totalQuantity                                                                                                                                                                                                                                                                                                                |
@@ -151,13 +151,13 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 - [x] Full Prisma schema and migration
 - [x] Seed: statuses (In stock = new, unopened; In storage = used and returned — both DEPLOYABLE; Pending; In repair; Archived), categories, companies
-- [ ] App Registration in Entra ID (redirect URI, client secret)
-- [ ] Auth.js + Entra ID provider, login page
-- [ ] Role assignment from Entra groups (ADMIN / EDITOR / VIEWER)
-- [ ] Auth middleware for all pages and APIs
+- [x] App Registration in Entra ID: multi-tenant with allowed tenants, redirect URI, client secret, app roles, assignment required
+- [x] Better Auth + Entra ID provider, login page, sign out
+- [x] Roles from Entra app roles (ADMIN / EDITOR / VIEWER)
+- [x] Proxy (`proxy.ts`) checks the session for all pages and APIs
 - [x] Main layout: compact sidebar (Home, Users, Assets by type, Licenses, Scan, Admin), header, search
 
-**Acceptance criterion:** sign-in with a Microsoft account works, the role is assigned correctly from the group.
+**Acceptance criterion:** sign-in with a Microsoft account works, the role is assigned correctly from the app role.
 
 ### Phase 2 — Snipe-IT migration
 
@@ -257,7 +257,7 @@ Questions that need answers before starting:
 
 - [ ] What exactly is encoded in the legacy QR?
 - [ ] Which domain will the new system use?
-- [ ] Which Entra groups map to ADMIN, EDITOR and VIEWER?
+- [x] Which Entra groups map to ADMIN, EDITOR and VIEWER? None: app roles on the Asset Management app, assigned to people or groups in each tenant.
 - [x] Will devices not in Intune (monitors, printers) be added to the system? Yes — see "Item types".
 - [ ] Which label printer and label size?
-- [ ] Waverity is a separate Entra tenant (shared office, IT, procurement; cross-tenant collaboration with EIGROUP). Do Waverity staff sign in as B2B guests in the EIGROUP tenant or with their own tenant (multi-tenant app)? Are Waverity devices in a separate Intune? This affects SSO (Phase 1), user sync and Intune sync (Phase 4).
+- [x] Waverity is a separate Entra tenant (shared office, IT, procurement; cross-tenant collaboration with EIGROUP). Do Waverity staff sign in as B2B guests in the EIGROUP tenant or with their own tenant (multi-tenant app)? Are Waverity devices in a separate Intune? This affects SSO (Phase 1), user sync and Intune sync (Phase 4). Decided: own tenant, one multi-tenant app with a tenant allow-list; Waverity grants admin consent in its tenant. User sync (Graph or SCIM) and Intune are decided in Phase 4.
