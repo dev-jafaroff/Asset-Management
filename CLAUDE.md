@@ -8,7 +8,7 @@ Plan and phases: docs/PLAN.md
 ## Stack
 
 Next.js (App Router) + TypeScript, Tailwind + shadcn/ui, TanStack Table,
-React Hook Form + Zod, PostgreSQL + Prisma, Auth.js (Entra ID), Microsoft Graph.
+React Hook Form + Zod, PostgreSQL + Prisma, Better Auth (Entra ID), Microsoft Graph.
 
 ## Commands
 
@@ -46,7 +46,7 @@ React Hook Form + Zod, PostgreSQL + Prisma, Auth.js (Entra ID), Microsoft Graph.
 - New QR: /a/[assetTag]
 - Intune matching: by serialNumber
 - Intune-owned fields: name, osVersion, lastIntuneSync (read-only in UI)
-- Roles: Entra groups → ADMIN / EDITOR / VIEWER
+- Roles: Entra app roles (ADMIN / EDITOR / VIEWER) on one multi-tenant app; only tenants in AUTH_ALLOWED_TENANT_IDS (EIG, Waverity) sign in
 - Asset types: PC, MONITOR, PRINTER, ACCESS_POINT, CAMERA, OTHER (labeled, tag prefixes PC- / MN- / PRN- / AP- / CAM- / OT-), PHONE, VM (no label)
 - OTHER holds one-off devices (e.g. the server room card reader), assigned to a location; the model category says what each is
 - Each type has an assignTo target in lib/assets/asset-types.ts (user / company / location); never branch on type names for assignment
@@ -56,6 +56,6 @@ React Hook Form + Zod, PostgreSQL + Prisma, Auth.js (Entra ID), Microsoft Graph.
 - Accessories are tracked by quantity (Accessory + AccessoryAssignment), no labels
 - Licenses are not assets: separate model, later, read from Graph
 - Users: all employees synced from Entra via Graph; /users/[id] shows everything assigned
-- Auth is mocked until feat/entra-sso: getCurrentUser() in lib/current-user.ts
+- Auth: lib/auth/ (Better Auth, stateless cookie session); proxy.ts guards every route; getCurrentUser() in lib/current-user.ts reads the session and syncs the User row
 
 @AGENTS.md
