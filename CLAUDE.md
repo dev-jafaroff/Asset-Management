@@ -55,7 +55,8 @@ React Hook Form + Zod, PostgreSQL + Prisma, Better Auth (Entra ID), Microsoft Gr
 - Access points and cameras are assigned to a location only; IP / MAC / hostname live in UniFi, not here
 - Accessories are tracked by quantity (Accessory + AccessoryAssignment), no labels
 - Licenses are not assets: separate model, later, read from Graph
-- Users: all employees synced from Entra via Graph; /users/[id] shows everything assigned
+- Users: members of the employees group (USER_SYNC_GROUPS) synced from Entra via Graph (lib/users/user-sync.ts); /users/[id] shows everything assigned
+- Scheduled jobs: POST /api/cron/* with CRON_SECRET (lib/sync/sync-run.ts), host-agnostic
 - Auth: lib/auth/ (Better Auth, stateless cookie session); proxy.ts guards every route; getCurrentUser() in lib/current-user.ts reads the session and syncs the User row
 
 @AGENTS.md

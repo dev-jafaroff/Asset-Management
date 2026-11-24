@@ -40,6 +40,13 @@ enum Role {
   VIEWER
 }
 
+enum SyncKind {
+  // People from Entra ID (both tenants).
+  USERS
+  // Devices from Intune.
+  INTUNE
+}
+
 enum AssetEventType {
   CREATED
   UPDATED
@@ -107,7 +114,8 @@ model StatusLabel {
 model User {
   id            Int     @id @default(autoincrement())
   entraObjectId String  @unique
-  // The Entra tenant the person belongs to (EIG or Waverity).
+  // The Entra tenant entraObjectId belongs to. Synced Waverity people are
+  // guests of the EIG tenant, so it is EIG for them; null for dev users.
   tenantId      String?
   email         String  @unique
   displayName   String
@@ -249,14 +257,21 @@ model AccessoryStockChange {
   @@index([accessoryId, createdAt])
 }
 
-// ─── Intune sync ─────────────────────────────────────────────────────────────
+// ─── Sync ────────────────────────────────────────────────────────────────────
 
+// One run of a sync, by the schedule or by "Sync now".
 model SyncRun {
   id         Int       @id @default(autoincrement())
+  kind       SyncKind
   startedAt  DateTime  @default(now())
+  // Null while it runs.
   finishedAt DateTime?
   created    Int       @default(0)
   updated    Int       @default(0)
+  // People turned inactive (users) or devices flagged missing (Intune).
   missing    Int       @default(0)
+  // What went wrong, e.g. a tenant that has not given admin consent.
   errors     Json?
+
+  @@index([kind, startedAt])
 }

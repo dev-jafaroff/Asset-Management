@@ -7,6 +7,8 @@ const permissionRoles = {
   "lookup:manage": ["ADMIN"],
   // Downloading a list as a file: anyone who can see the list.
   "list:export": ["ADMIN", "EDITOR", "VIEWER"],
+  // Starting a sync with Entra ID or Intune by hand ("Sync now").
+  "sync:run": ["ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof permissionRoles;

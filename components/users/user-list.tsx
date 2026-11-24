@@ -1,20 +1,19 @@
 import { StatusTabs } from "@/components/assets/status-tabs";
 import { ExportButton } from "@/components/shared/export-button";
+import { FilterSelect } from "@/components/shared/filter-select";
 import { ListSearch } from "@/components/shared/list-search";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserTable } from "@/components/users/user-table";
-import {
-  buildHref,
-  getParam,
-  SEARCH_PARAM,
-  type SearchParams,
-} from "@/lib/search-params";
+import { buildHref, getParam, type SearchParams } from "@/lib/search-params";
 import {
   findUserTab,
+  getUserListFilter,
   getUserPath,
+  listUserDomainOptions,
   listUsers,
   listUserTabsWithCounts,
   toUserTabParam,
+  USER_DOMAIN_PARAM,
   USER_TAB_PARAM,
   USERS_EXPORT_PATH,
   USERS_PATH,
@@ -27,20 +26,32 @@ export async function UserList({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const search = getParam(params, SEARCH_PARAM);
+  const filter = getUserListFilter(params);
 
-  // Tab counts follow the search, so they show where the matches are.
-  const tabs = await listUserTabsWithCounts(search);
+  // Tab counts follow the search and filter, so they show where the matches are.
+  const [tabs, domains] = await Promise.all([
+    listUserTabsWithCounts(filter),
+    listUserDomainOptions(),
+  ]);
   const activeTab = findUserTab(tabs, getParam(params, USER_TAB_PARAM));
-  const users = await listUsers({ tab: activeTab, search });
+  const users = await listUsers({ ...filter, tab: activeTab });
 
   return (
     <div className="flex min-h-0 flex-col gap-4">
-      <ListSearch
-        label="Search people"
-        placeholder="Search by name, email or department"
-        className="max-w-sm"
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <ListSearch
+          label="Search people"
+          placeholder="Search by name, email or department"
+          className="max-w-sm"
+        />
+        <FilterSelect
+          param={USER_DOMAIN_PARAM}
+          label="Email domain"
+          allLabel="All domains"
+          options={domains}
+          value={filter.domain}
+        />
+      </div>
 
       <StatusTabs
         activeSlug={activeTab.slug}
@@ -58,7 +69,9 @@ export async function UserList({
 
       {users.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {search ? `No people match “${search}”.` : "No people here."}
+          {filter.search
+            ? `No people match “${filter.search}”.`
+            : "No people here."}
         </p>
       ) : (
         <UserTable

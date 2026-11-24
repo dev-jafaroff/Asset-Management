@@ -310,6 +310,18 @@ function typeFields(
 
 // ─── Seed steps ──────────────────────────────────────────────────────────────
 
+// The people from the user sync when there are any (sync before seeding),
+// so the sample items are held by real names. Made-up people otherwise.
+async function getOrCreateUsers(tx: Tx): Promise<number[]> {
+  const synced = await tx.user.findMany({
+    where: { tenantId: { not: null }, isActive: true, role: "VIEWER" },
+    select: { id: true },
+    orderBy: { id: "asc" },
+  });
+  if (synced.length > 0) return synced.map((user) => user.id);
+  return createUsers(tx);
+}
+
 async function createUsers(tx: Tx): Promise<number[]> {
   const users = Array.from({ length: USER_COUNT }, (_, index) => {
     const firstName = faker.person.firstName();
@@ -459,7 +471,7 @@ async function main() {
 
   await prisma.$transaction(
     async (tx) => {
-      const userIds = await createUsers(tx);
+      const userIds = await getOrCreateUsers(tx);
       const refs: Refs = {
         userIds,
         companyIds: companies.map((company) => company.id),

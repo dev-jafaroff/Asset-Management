@@ -31,6 +31,12 @@ export function isAllowedTenant(tenantId: unknown): boolean {
   );
 }
 
+// Emails are stored in lower case, so sign-in and user sync find the same
+// person however Entra spells the address.
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 // Why a sign-in was turned away, as the login page tells the person.
 const signInErrors = {
   tenant_not_allowed: "Your organization does not use this app.",

@@ -12,7 +12,13 @@ import {
 import { assetListSelect } from "@/lib/assets/queries";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getPositiveIntParam } from "@/lib/search-params";
+import {
+  getParam,
+  getPositiveIntParam,
+  SEARCH_PARAM,
+  type FilterOption,
+  type SearchParams,
+} from "@/lib/search-params";
 
 export const USERS_PATH = "/users";
 // CSV download of the list, with the same params as the list.
@@ -87,16 +93,57 @@ function buildUserSearchWhere(search?: string): Prisma.UserWhereInput {
   };
 }
 
+// ─── Domain filter ───────────────────────────────────────────────────────────
+
+// The email domain tells the companies apart, e.g. "waverity.ai".
+export const USER_DOMAIN_PARAM = "domain";
+
+// Every email domain there is, for the filter.
+export async function listUserDomainOptions(): Promise<FilterOption[]> {
+  const rows = await prisma.$queryRaw<{ domain: string }[]>`
+    SELECT DISTINCT split_part("email", '@', 2) AS "domain"
+    FROM "User"
+    ORDER BY "domain"
+  `;
+  return rows.map(({ domain }) => ({ value: domain, label: domain }));
+}
+
+function buildUserDomainWhere(domain?: string): Prisma.UserWhereInput {
+  return domain
+    ? { email: { endsWith: `@${domain}`, mode: "insensitive" } }
+    : {};
+}
+
+// What narrows the list besides the tab, read from the URL by the page and
+// the export alike.
+export type UserListFilter = { search?: string; domain?: string };
+
+export function getUserListFilter(params: SearchParams): UserListFilter {
+  return {
+    search: getParam(params, SEARCH_PARAM),
+    domain: getParam(params, USER_DOMAIN_PARAM),
+  };
+}
+
+function buildUserFilterWhere(filter: UserListFilter): Prisma.UserWhereInput {
+  return {
+    AND: [
+      buildUserSearchWhere(filter.search),
+      buildUserDomainWhere(filter.domain),
+    ],
+  };
+}
+
 export type UserTabWithCount = UserTab & { count: number };
 
-// Every tab with the number of people it holds under the search.
+// Every tab with the number of people it holds under the search and filter.
 export async function listUserTabsWithCounts(
-  search?: string,
+  filter: UserListFilter,
 ): Promise<UserTabWithCount[]> {
-  const searchWhere = buildUserSearchWhere(search);
+  const filterWhere = buildUserFilterWhere(filter);
   const counts = await Promise.all(
     userTabs.map((tab) =>
-      prisma.user.count({ where: { AND: [tab.where, searchWhere] } }),
+      prisma.user.count({ where: { AND: [tab.where, filterWhere] } }),
     ),
   );
   return userTabs.map((tab, index) => ({ ...tab, count: counts[index] }));
@@ -118,12 +165,12 @@ export function toUserTabParam(slug: string): string | undefined {
 }
 
 // Every matching person, on one page like the asset lists.
-export async function listUsers(filter: {
-  tab: UserTab;
-  search?: string;
-}): Promise<UserListItem[]> {
+export async function listUsers({
+  tab,
+  ...filter
+}: UserListFilter & { tab: UserTab }): Promise<UserListItem[]> {
   const users = await prisma.user.findMany({
-    where: { AND: [filter.tab.where, buildUserSearchWhere(filter.search)] },
+    where: { AND: [tab.where, buildUserFilterWhere(filter)] },
     select: userListSelect,
     orderBy: [{ displayName: "asc" }, { id: "asc" }],
   });
