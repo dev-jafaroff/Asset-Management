@@ -1,7 +1,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { getRoleFromClaims, LOGIN_PATH } from "@/lib/auth/entra";
+import {
+  getRoleFromClaims,
+  LOGIN_PATH,
+  normalizeEmail,
+} from "@/lib/auth/entra";
 import { auth } from "@/lib/auth/server";
 import type { Role } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
@@ -29,9 +33,9 @@ type EntraPerson = Omit<CurrentUser, "id"> & {
   tenantId: string;
 };
 
-// The person's User row, created on their first sign-in and kept in step
-// with Entra after that (name, email and role change there, not here).
-// Usually a single read: it only writes when something changed.
+// The person's User row, usually made by the user sync before they ever sign
+// in, and kept in step with Entra (name, email and role change there, not
+// here). Usually a single read: it only writes when something changed.
 async function syncUserRow({
   entraObjectId,
   tenantId,
@@ -39,27 +43,37 @@ async function syncUserRow({
   email,
   role,
 }: EntraPerson): Promise<CurrentUser> {
-  const where = { entraObjectId };
-  const fromEntra = { tenantId, displayName, email, role };
-
-  const row = await prisma.user.findUnique({
-    where,
-    select: { ...currentUserSelect, tenantId: true },
+  // Found by the Entra object id, or else by email: Waverity people are
+  // synced as guests of the EIG tenant, whose object id differs from the one
+  // they sign in with from their own tenant. Their row keeps the synced id.
+  const rows = await prisma.user.findMany({
+    where: { OR: [{ entraObjectId }, { email }] },
+    select: { ...currentUserSelect, entraObjectId: true },
   });
+  const row =
+    rows.find((match) => match.entraObjectId === entraObjectId) ?? rows[0];
+
+  if (!row) {
+    // Not synced (yet). Upsert, as two first requests can arrive at once.
+    return prisma.user.upsert({
+      where: { entraObjectId },
+      create: { entraObjectId, tenantId, displayName, email, role },
+      update: {},
+      select: currentUserSelect,
+    });
+  }
+
+  const fromEntra = { displayName, email, role };
   if (
-    row &&
-    row.tenantId === tenantId &&
     row.displayName === displayName &&
     row.email === email &&
     row.role === role
   ) {
-    return { id: row.id, displayName, email, role };
+    return { id: row.id, ...fromEntra };
   }
-
-  return prisma.user.upsert({
-    where,
-    create: { entraObjectId, ...fromEntra },
-    update: fromEntra,
+  return prisma.user.update({
+    where: { id: row.id },
+    data: fromEntra,
     select: currentUserSelect,
   });
 }
@@ -76,7 +90,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
     entraObjectId: user.entraObjectId,
     tenantId: user.tenantId,
     displayName: user.name,
-    email: user.email,
+    email: normalizeEmail(user.email),
     role,
   });
 });

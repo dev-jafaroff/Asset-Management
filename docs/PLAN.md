@@ -54,7 +54,8 @@ The sync job and the migration script write their results directly to PostgreSQL
 - **Field ownership:** device name, OS and last sync date belong to Intune and are read-only in the UI; company, location, cost and notes are managed manually.
 - **Legacy QR:** the `/hardware/[id]` route finds the asset by `legacySnipeId` and redirects to the new page; the old domain is kept or redirected.
 - **New QR:** `/a/[assetTag]` — a system-independent, immutable format.
-- **Users:** all employees are synced from Entra ID via Graph, so items can be assigned before a person ever signs in; the app role only matters for people who sign in.
+- **Users:** all employees are synced from Entra ID via Graph (not SCIM), so items can be assigned before a person ever signs in; the app role only matters for people who sign in. "Employee" means a member of one Entra group per tenant (`USER_SYNC_GROUPS`), because some licensed accounts are not people. Waverity staff are guests in the EIG group, so sign-in finds their row by email. Leaving the group, being disabled or deleted (OAS offboarding) makes a person inactive; their items and history stay.
+- **Scheduled jobs:** plain `POST /api/cron/*` endpoints guarded by `CRON_SECRET`, so any scheduler can call them (the host is not decided yet).
 - **Icons:** `lucide-react` (only imported icons are bundled). One registry decides which icon an item type uses (`components/assets/asset-icons.tsx`); tables, sidebar, dashboard and scan read from it. Icons lucide lacks are added there with `createLucideIcon`, so they work the same way. Accessory categories get an icon key when the accessories pages are built.
 
 ### Item types
@@ -86,7 +87,7 @@ The database has 11 tables; at the center are `Asset` and `AssetEvent`, which st
 | `StatusLabel`         | Status                              | name, type (DEPLOYABLE / PENDING / UNDEPLOYABLE / ARCHIVED), color                                                                                                                                                                                                                                                                             |
 | `User`                | Employees                           | entraObjectId, tenantId, email, displayName, department, role (ADMIN / EDITOR / VIEWER)                                                                                                                                                                                                                                                        |
 | `AssetEvent`          | History (immutable log)             | assetId, type (CREATED / UPDATED / CHECKOUT / CHECKIN / SYNC / IMPORTED), actorId, targetUserId, changes (JSON), createdAt                                                                                                                                                                                                                     |
-| `SyncRun`             | Intune sync results                 | startedAt, finishedAt, created, updated, missing, errors (JSON)                                                                                                                                                                                                                                                                                |
+| `SyncRun`             | User and Intune sync results        | kind, startedAt, finishedAt, created, updated, missing, errors (JSON)                                                                                                                                                                                                                                                                          |
 | `Accessory`           | Accessory stock item                | name, categoryId, totalQuantity                                                                                                                                                                                                                                                                                                                |
 | `AccessoryAssignment` | Accessories given to a user         | accessoryId, userId, quantity, assignedAt, returnedAt                                                                                                                                                                                                                                                                                          |
 
@@ -201,7 +202,8 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Keep the last sync error per asset (e.g. `lastIntuneSyncError`) and show it in the Intune card
 - [ ] "Request device check-in" in the Intune card (Graph `syncDevice`, needs `DeviceManagementManagedDevices.PrivilegedOperations.All`)
 - [ ] Sync log page (`SyncRun`)
-- [ ] User sync from Entra ID (`User.Read.All` Application permission): name, email, department
+- [x] User sync from Entra ID (`User.Read.All` + `GroupMember.Read.All` Application permissions): members of the employees group; name, email, department, job title; "Sync from Entra" on the users page and `POST /api/cron/user-sync`
+- [ ] Schedule the user sync (daily) on the chosen host
 
 **Acceptance criterion:** running sync twice in a row creates no duplicates and manual changes are not lost.
 
@@ -260,4 +262,4 @@ Questions that need answers before starting:
 - [x] Which Entra groups map to ADMIN, EDITOR and VIEWER? None: app roles on the Asset Management app, assigned to people or groups in each tenant.
 - [x] Will devices not in Intune (monitors, printers) be added to the system? Yes — see "Item types".
 - [ ] Which label printer and label size?
-- [x] Waverity is a separate Entra tenant (shared office, IT, procurement; cross-tenant collaboration with EIGROUP). Do Waverity staff sign in as B2B guests in the EIGROUP tenant or with their own tenant (multi-tenant app)? Are Waverity devices in a separate Intune? This affects SSO (Phase 1), user sync and Intune sync (Phase 4). Decided: own tenant, one multi-tenant app with a tenant allow-list; Waverity grants admin consent in its tenant. User sync (Graph or SCIM) and Intune are decided in Phase 4.
+- [x] Waverity is a separate Entra tenant (shared office, IT, procurement; cross-tenant collaboration with EIGROUP). Do Waverity staff sign in as B2B guests in the EIGROUP tenant or with their own tenant (multi-tenant app)? Are Waverity devices in a separate Intune? This affects SSO (Phase 1), user sync and Intune sync (Phase 4). Decided: own tenant, one multi-tenant app with a tenant allow-list; Waverity grants admin consent in its tenant. User sync: Graph, one employees group in the EIG tenant that also holds the Waverity guests. Intune is decided in Phase 4.

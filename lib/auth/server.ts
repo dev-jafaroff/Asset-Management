@@ -6,17 +6,12 @@ import {
   LOGIN_PATH,
   type SignInError,
 } from "@/lib/auth/entra";
+import { requireEnv } from "@/lib/env";
 
 // A working day. The session is not extended, so a role taken away in Entra,
 // or a person removed from Entra, is out by the next day at the latest.
 // Signing in again is one redirect while the Microsoft session is open.
 const SESSION_SECONDS = 12 * 60 * 60;
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set.`);
-  return value;
-}
 
 // Sign-in with Microsoft Entra ID. Stateless: the session lives in an
 // encrypted cookie (BETTER_AUTH_SECRET), there are no auth tables. Our own

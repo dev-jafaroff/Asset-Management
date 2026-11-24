@@ -17,6 +17,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Everything except the login page, Better Auth's own endpoints, the health
-  // check, Next's files and the files in public/ (anything with a dot).
-  matcher: ["/((?!login|api/auth|api/health|_next/|.*\\..*).*)"],
+  // check, the scheduled jobs (they check CRON_SECRET themselves), Next's
+  // files and the files in public/ (anything with a dot).
+  matcher: ["/((?!login|api/auth|api/health|api/cron|_next/|.*\\..*).*)"],
 };

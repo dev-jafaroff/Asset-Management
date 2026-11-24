@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { exportXlsx, type ExportColumn } from "@/lib/export/xlsx";
-import { getParam, SEARCH_PARAM } from "@/lib/search-params";
+import { getParam } from "@/lib/search-params";
 import {
+  getUserListFilter,
   getUserTab,
   listUsers,
   USER_TAB_PARAM,
@@ -18,14 +19,13 @@ const userColumns: ExportColumn<UserListItem>[] = [
   { header: "Accessories", value: (user) => user.heldAccessories },
 ];
 
-// The users list as it is shown: its tab and search.
+// The users list as it is shown: its tab, search and domain.
 export async function GET(request: NextRequest) {
   const params = Object.fromEntries(request.nextUrl.searchParams);
   const tab = getUserTab(getParam(params, USER_TAB_PARAM));
-  const search = getParam(params, SEARCH_PARAM);
 
   return exportXlsx({ name: "users", sheet: "Users" }, async () => ({
     columns: userColumns,
-    rows: await listUsers({ tab, search }),
+    rows: await listUsers({ ...getUserListFilter(params), tab }),
   }));
 }
