@@ -36,8 +36,10 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     slug: "printers",
     label: "Printers",
     singularLabel: "Printer",
-    tagPrefix: "PRN-",
-    assignTo: "user",
+    // The series the Snipe-IT labels started.
+    tagPrefix: "PR-",
+    // Shared office printers stand in a room.
+    assignTo: "location",
   },
   {
     type: "PHONE",
