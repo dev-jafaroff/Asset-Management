@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
-import { getAssetTypeBySlug } from "@/lib/assets/asset-types";
+import { getAssetPath, getAssetTypeBySlug } from "@/lib/assets/asset-types";
 import { assetListSelect } from "@/lib/assets/queries";
 import { formatModelName } from "@/lib/assets/format";
 import { prisma } from "@/lib/prisma";
@@ -60,6 +60,18 @@ export async function getRouteAsset(
     redirect(pathFor(asset.type, asset.id));
   }
   return asset;
+}
+
+// The page of a migrated asset, by its Snipe-IT id (old QR labels); null
+// when no asset came with that id.
+export async function getLegacyAssetPath(
+  snipeId: number,
+): Promise<string | null> {
+  const asset = await prisma.asset.findUnique({
+    where: { legacySnipeId: snipeId },
+    select: { id: true, type: true },
+  });
+  return asset ? getAssetPath(asset.type, asset.id) : null;
 }
 
 export function getCheckedOutAt(asset: AssetDetail): Date | null {

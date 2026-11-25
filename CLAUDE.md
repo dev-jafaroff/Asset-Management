@@ -41,7 +41,7 @@ React Hook Form + Zod, PostgreSQL + Prisma, Better Auth (Entra ID), Microsoft Gr
 
 - Repo: GitHub (dev-jafaroff/Asset-Management), not Azure DevOps; main is protected, merge via PR
 - CI/CD: GitHub Actions → Azure App Service
-- Legacy QR format: <scan a label and fill in>
+- Legacy QR format: https://inventory.myit.az/hardware/<Snipe-IT id>
 - Legacy QR route: /hardware/[id] → lookup by legacySnipeId
 - New QR: /a/[assetTag]
 - Intune matching: by serialNumber

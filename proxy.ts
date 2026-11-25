@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { LOGIN_PATH } from "@/lib/auth/entra";
+import { LOGIN_PATH, RETURN_TO_PARAM } from "@/lib/auth/entra";
 import { auth } from "@/lib/auth/server";
 
 // Nothing in the app is served without a valid session. The session is read
@@ -12,7 +12,13 @@ export async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return new Response("Sign in first.", { status: 401 });
   }
-  return NextResponse.redirect(new URL(LOGIN_PATH, request.url));
+  // Back to the same page after signing in, e.g. a scanned label.
+  const login = new URL(LOGIN_PATH, request.url);
+  const { pathname, search } = request.nextUrl;
+  if (pathname !== "/") {
+    login.searchParams.set(RETURN_TO_PARAM, `${pathname}${search}`);
+  }
+  return NextResponse.redirect(login);
 }
 
 export const config = {

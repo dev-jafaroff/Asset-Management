@@ -12,7 +12,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { signIn } from "@/lib/auth/actions";
-import { getRoleFromClaims, getSignInErrorMessage } from "@/lib/auth/entra";
+import {
+  getReturnPath,
+  getRoleFromClaims,
+  getSignInErrorMessage,
+  RETURN_TO_PARAM,
+} from "@/lib/auth/entra";
 import { auth } from "@/lib/auth/server";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -30,42 +35,64 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Suspense fallback={null}>
-            <SignInError searchParams={searchParams} />
+          <Suspense fallback={<SignInForm disabled />}>
+            <SignIn searchParams={searchParams} />
           </Suspense>
-          <form action={signIn}>
-            <Button type="submit" size="lg" className="w-full">
-              <MicrosoftLogo />
-              Sign in with Microsoft
-            </Button>
-          </form>
         </CardContent>
       </Card>
     </main>
   );
 }
 
-// Why the last sign-in was turned away, from ?error=<code>. Someone already
-// signed in goes straight to the app.
-async function SignInError({
+// The sign-in, with why the last one was turned away (?error=<code>) and
+// where to go after it (?next=<path>). Someone already signed in goes
+// straight there.
+async function SignIn({
   searchParams,
 }: Pick<PageProps<"/login">, "searchParams">) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (session && getRoleFromClaims([session.user.role])) redirect("/");
+  const { error, [RETURN_TO_PARAM]: next } = await searchParams;
+  const returnPath = getReturnPath(next);
 
-  const { error } = await searchParams;
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session && getRoleFromClaims([session.user.role])) redirect(returnPath);
+
   const message = getSignInErrorMessage(
     typeof error === "string" ? error : undefined,
   );
-  if (!message) return null;
 
   return (
-    <p
-      role="alert"
-      className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-    >
-      {message}
-    </p>
+    <>
+      {message && (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {message}
+        </p>
+      )}
+      <SignInForm returnPath={returnPath} />
+    </>
+  );
+}
+
+// Disabled until the page knows where to return to.
+function SignInForm({
+  returnPath,
+  disabled,
+}: {
+  returnPath?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <form action={signIn}>
+      {returnPath && (
+        <input type="hidden" name={RETURN_TO_PARAM} value={returnPath} />
+      )}
+      <Button type="submit" size="lg" className="w-full" disabled={disabled}>
+        <MicrosoftLogo />
+        Sign in with Microsoft
+      </Button>
+    </form>
   );
 }
 

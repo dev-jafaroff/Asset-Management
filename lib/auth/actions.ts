@@ -2,16 +2,17 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { LOGIN_PATH } from "@/lib/auth/entra";
+import { getReturnPath, LOGIN_PATH, RETURN_TO_PARAM } from "@/lib/auth/entra";
 import { auth } from "@/lib/auth/server";
 
-// Off to Microsoft; back on the home page, or on the login page with
-// ?error=<code> when the sign-in is turned away.
-export async function signIn() {
+// Off to Microsoft; back on the page asked for before signing in (the form's
+// ?next=, home by default), or on the login page with ?error=<code> when the
+// sign-in is turned away.
+export async function signIn(formData: FormData) {
   const { url } = await auth.api.signInSocial({
     body: {
       provider: "microsoft",
-      callbackURL: "/",
+      callbackURL: getReturnPath(formData.get(RETURN_TO_PARAM)),
       errorCallbackURL: LOGIN_PATH,
     },
     headers: await headers(),
