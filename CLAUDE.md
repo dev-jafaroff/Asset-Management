@@ -47,12 +47,12 @@ React Hook Form + Zod, PostgreSQL + Prisma, Better Auth (Entra ID), Microsoft Gr
 - Intune matching: by serialNumber
 - Intune-owned fields: name, osVersion, lastIntuneSync (read-only in UI)
 - Roles: Entra app roles (ADMIN / EDITOR / VIEWER) on one multi-tenant app; only tenants in AUTH_ALLOWED_TENANT_IDS (EIG, Waverity) sign in
-- Asset types: PC, MONITOR, PRINTER, ACCESS_POINT, CAMERA, OTHER (labeled, tag prefixes PC- / MN- / PRN- / AP- / CAM- / OT-), PHONE, VM (no label)
+- Asset types: PC, MONITOR, PRINTER, ACCESS_POINT, CAMERA, OTHER (labeled, tag prefixes PC- / MN- / PR- / AP- / CAM- / OT-), PHONE, VM (no label)
 - OTHER holds one-off devices (e.g. the server room card reader), assigned to a location; the model category says what each is
 - Each type has an assignTo target in lib/assets/asset-types.ts (user / company / location); never branch on type names for assignment
 - Phone number is a column on PHONE assets; SIMs are not separate items
 - VMs are assigned to a company, never to a user
-- Access points and cameras are assigned to a location only; IP / MAC / hostname live in UniFi, not here
+- Printers, access points and cameras are assigned to a location only; IP / MAC / hostname live in UniFi, not here
 - Accessories are tracked by quantity (Accessory + AccessoryAssignment), no labels
 - Licenses are not assets: separate model, later, read from Graph
 - Users: members of the employees group (USER_SYNC_GROUPS) synced from Entra via Graph (lib/users/user-sync.ts); /users/[id] shows everything assigned

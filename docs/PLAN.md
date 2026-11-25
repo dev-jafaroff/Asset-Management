@@ -18,7 +18,7 @@ Replace Snipe-IT with a simple, compact internal system tailored to the company'
 - New QR generation, label printing and camera scanning
 - CSV export
 
-**Not in the MVP (later):** licenses (separate section: Microsoft 365 read from Graph, other vendors such as Adobe entered manually — maybe synced from vendor admin APIs later), consumables, components, audit scheduling, maintenance records, mobile app (React Native).
+**Not in the MVP (later):** licenses (separate section: Microsoft 365 read from Graph, other vendors such as Adobe entered manually — maybe synced from vendor admin APIs later), consumables, components, procurement section (its own resources, entered by hand), audit scheduling, maintenance records, mobile app (React Native).
 
 ## Technology stack
 
@@ -64,7 +64,7 @@ The sync job and the migration script write their results directly to PostgreSQL
 | --------------- | ------------ | ---------------------------- | ----------- | ----------------------------------------------------------------------------------------- |
 | PC              | Yes (`PC-`)  | One record per device        | User        | Synced from Intune                                                                        |
 | Monitor         | Yes (`MN-`)  | One record per device        | User        |                                                                                           |
-| Printer         | Yes (`PRN-`) | One record per device        | User        |                                                                                           |
+| Printer         | Yes (`PR-`)  | One record per device        | Location    |                                                                                           |
 | Phone           | No           | One record per device        | User        | Phone number is a column; SIMs are not separate                                           |
 | Virtual machine | No           | One record per VM            | Company     | Many users share one VM                                                                   |
 | Access point    | Yes (`AP-`)  | One record per device        | Location    | Network details (IP, MAC) stay in UniFi                                                   |
@@ -96,7 +96,7 @@ Core rules:
 - An asset is never physically deleted; it moves to ARCHIVED status.
 - Every change is written to `AssetEvent`; history is append-only, never edited.
 - Users are created automatically on first login or from Graph; there is no manual user management.
-- Asset tag format continues the existing convention: `PC-00001`, `MN-00001`, `PRN-00001`, `AP-00001`, `CAM-00001`, `OT-00001`; the next number per prefix is assigned automatically. Phones and VMs have no tag.
+- Asset tag format continues the existing convention: `PC-00001`, `MN-00001`, `PR-00001`, `AP-00001`, `CAM-00001`, `OT-00001`; the next number per prefix is assigned automatically. Phones and VMs have no tag. Migrated items keep the tags printed on their Snipe-IT labels (e.g. `ND-`, `SR-`, `WS-`); new items of those kinds get the prefix of their type.
 - A VM is assigned to a company (`companyId`), never to a user.
 - Access points, cameras and other devices are assigned to a location (`locationId`); in stock they have no location.
 - Accessories in stock = `totalQuantity` minus the sum of open assignments.
@@ -162,12 +162,13 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 ### Phase 2 — Snipe-IT migration
 
-- [ ] Create an API token in Snipe-IT
-- [ ] Migrate lookup tables (model, category, company, status, location)
-- [ ] Migrate assets, keeping `legacySnipeId`
-- [ ] Migrate checkin/checkout history into `AssetEvent`
+- [x] Create an API token in Snipe-IT
+- [x] Migrate lookup tables (model, category, company, status, location)
+- [x] Migrate assets, keeping `legacySnipeId` (`npm run snipeit:migrate`, `--dry-run` first; needs an empty asset table)
+- [x] Migrate checkin/checkout history into `AssetEvent` (people no longer in Entra ID are kept in the note)
 - [ ] Legacy QR route: `/hardware/[id]` → new asset page
-- [ ] Run the script against a test database, verify the count (316 assets)
+- [x] Run the script against a test database, verify the count (321 assets, archived included)
+- Accessories, consumables and the procurement test items in Snipe-IT are not migrated: they were test data and are entered by hand
 
 **Acceptance criterion:** all assets are migrated; scanning 5 random labels opens the correct page.
 
