@@ -166,7 +166,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [x] Migrate lookup tables (model, category, company, status, location)
 - [x] Migrate assets, keeping `legacySnipeId` (`npm run snipeit:migrate`, `--dry-run` first; needs an empty asset table)
 - [x] Migrate checkin/checkout history into `AssetEvent` (people no longer in Entra ID are kept in the note)
-- [ ] Legacy QR route: `/hardware/[id]` → new asset page
+- [x] Legacy QR route: `/hardware/[id]` → new asset page (after sign-in too: the login page returns to `?next=`)
 - [x] Run the script against a test database, verify the count (321 assets, archived included)
 - Accessories, consumables and the procurement test items in Snipe-IT are not migrated: they were test data and are entered by hand
 
@@ -258,7 +258,7 @@ The biggest risk is legacy QR labels no longer working; this is verified in Phas
 
 Questions that need answers before starting:
 
-- [ ] What exactly is encoded in the legacy QR?
+- [x] What exactly is encoded in the legacy QR? `https://inventory.myit.az/hardware/<Snipe-IT id>`: that domain must point to the new system.
 - [ ] Which domain will the new system use?
 - [x] Which Entra groups map to ADMIN, EDITOR and VIEWER? None: app roles on the Asset Management app, assigned to people or groups in each tenant.
 - [x] Will devices not in Intune (monitors, printers) be added to the system? Yes — see "Item types".

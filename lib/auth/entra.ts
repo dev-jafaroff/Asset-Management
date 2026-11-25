@@ -6,6 +6,22 @@ import type { Role } from "@/lib/generated/prisma/enums";
 
 export const LOGIN_PATH = "/login";
 
+// Where to go after signing in, e.g. the page of a scanned label:
+// /login?next=/hardware/278
+export const RETURN_TO_PARAM = "next";
+
+// Only a path of this app, never another site ("//evil.example",
+// "/\evil.example", "/\t/evil.example" all lead to one); anything else goes
+// home. The URL parser reads the path as a browser would.
+const OWN_ORIGIN = "http://app.invalid";
+
+export function getReturnPath(value: unknown): string {
+  if (typeof value !== "string" || !value.startsWith("/")) return "/";
+  const url = new URL(value, OWN_ORIGIN);
+  const path = `${url.pathname}${url.search}`;
+  return url.origin === OWN_ORIGIN && !path.startsWith(LOGIN_PATH) ? path : "/";
+}
+
 // The app role values in the Entra app registration are the Role names.
 // Strongest first, so a person with several roles gets the strongest one.
 const rolesByRank: readonly Role[] = ["ADMIN", "EDITOR", "VIEWER"];
