@@ -75,3 +75,9 @@ export function getCheckoutBlocker(asset: AssetWithStatus): string | null {
   }
   return null;
 }
+
+// Serials as compared between Intune, Snipe-IT and the forms: "pf3a 1bcd"
+// and "PF3A1BCD" are the same device.
+export function normalizeSerial(serial: string): string {
+  return serial.replace(/\s+/g, "").toUpperCase();
+}

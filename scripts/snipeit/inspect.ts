@@ -5,6 +5,7 @@
 //
 // npm run snipeit:inspect
 import "dotenv/config";
+import { normalizeSerial } from "@/lib/assets/format";
 import { normalizeEmail } from "@/lib/auth/entra";
 import { prisma } from "@/lib/prisma";
 import {
@@ -22,31 +23,7 @@ import {
   userSchema,
   type SnipeHardware,
 } from "./client";
-
-function heading(title: string) {
-  console.log(`\n── ${title} ${"─".repeat(Math.max(0, 70 - title.length))}`);
-}
-
-function warnInvalid(what: string, invalid: number) {
-  if (invalid > 0) console.log(`  ! ${invalid} ${what} did not parse`);
-}
-
-// Counts per key, largest first: [["Laptops", 120], …]
-function countBy<T>(items: T[], key: (item: T) => string): [string, number][] {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const value = key(item);
-    counts.set(value, (counts.get(value) ?? 0) + 1);
-  }
-  return [...counts].sort((a, b) => b[1] - a[1]);
-}
-
-function printCounts(rows: [string, number][], indent = "  ") {
-  const width = Math.max(0, ...rows.map(([label]) => label.length));
-  for (const [label, count] of rows) {
-    console.log(`${indent}${label.padEnd(width)}  ${count}`);
-  }
-}
+import { countBy, heading, printCounts, warnInvalid } from "../report";
 
 // "PC-00012" → "AA-99999", so tag formats can be compared without listing tags.
 function getShape(value: string): string {
@@ -151,9 +128,7 @@ function inspectTags(assets: SnipeHardware[]) {
   const duplicateTags =
     tags.length - new Set(tags.map((tag) => tag.toUpperCase())).size;
   const serials = assets.flatMap((asset) =>
-    asset.serial?.trim()
-      ? [asset.serial.replace(/\s+/g, "").toUpperCase()]
-      : [],
+    asset.serial?.trim() ? [normalizeSerial(asset.serial)] : [],
   );
   const duplicateSerials = serials.length - new Set(serials).size;
 

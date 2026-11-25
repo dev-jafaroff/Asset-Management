@@ -12,7 +12,8 @@
     "seed:dev": "tsx prisma/seed-dev.ts",
     "postinstall": "prisma generate",
     "snipeit:inspect": "tsx scripts/snipeit/inspect.ts",
-    "snipeit:migrate": "tsx scripts/snipeit/migrate.ts"
+    "snipeit:migrate": "tsx scripts/snipeit/migrate.ts",
+    "intune:inspect": "tsx scripts/intune/inspect.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
