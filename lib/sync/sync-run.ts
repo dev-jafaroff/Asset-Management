@@ -90,8 +90,21 @@ export function syncOutcomeResponse(outcome: SyncOutcome): Response {
 // What "Sync now" shows.
 export type SyncMessage = { ok: boolean; text: string; errors: string[] };
 
+type SyncCounts = Omit<SyncTally, "errors">;
+
 // How each count reads, e.g. { created: "added", missing: "marked as left" }.
-type SyncCountLabels = Record<keyof Omit<SyncTally, "errors">, string>;
+export type SyncCountLabels = Record<keyof SyncCounts, string>;
+
+// e.g. "3 added, 1 marked as left", or "nothing changed".
+export function formatSyncCounts(
+  counts: SyncCounts,
+  labels: SyncCountLabels,
+): string {
+  const changes = (Object.keys(labels) as (keyof SyncCounts)[])
+    .filter((count) => counts[count] > 0)
+    .map((count) => `${counts[count]} ${labels[count]}`);
+  return changes.length > 0 ? changes.join(", ") : "nothing changed";
+}
 
 // e.g. "Synced: 3 added, 1 marked as left." or "Synced: nothing changed."
 export function describeSyncOutcome(
@@ -106,10 +119,7 @@ export function describeSyncOutcome(
     };
   }
 
-  const changes = (Object.keys(labels) as (keyof SyncCountLabels)[])
-    .filter((count) => outcome[count] > 0)
-    .map((count) => `${outcome[count]} ${labels[count]}`);
-  const summary = changes.length > 0 ? changes.join(", ") : "nothing changed";
+  const summary = formatSyncCounts(outcome, labels);
   const { errors } = outcome;
   return {
     ok: errors.length === 0,

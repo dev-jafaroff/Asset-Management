@@ -99,7 +99,7 @@ export const navSections: NavSection[] = [
         icon: Tags,
         rememberState: true,
       },
-      { label: "Intune sync", href: "/admin/sync", icon: RefreshCw },
+      { label: "Azure sync", href: "/admin/sync", icon: RefreshCw },
     ],
   },
 ];

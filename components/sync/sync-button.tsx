@@ -1,34 +1,50 @@
 "use client";
 
 import { RefreshCw, X } from "lucide-react";
-import { useState, useTransition } from "react";
-import { syncUsersNow } from "@/app/(app)/users/actions";
+import { useEffect, useState, useTransition } from "react";
+import { runSyncNow } from "@/app/(app)/admin/sync/actions";
 import { Button } from "@/components/ui/button";
 import type { SyncMessage } from "@/lib/sync/sync-run";
 import { cn } from "@/lib/utils";
 
-// "Sync now": pulls the employees from Entra ID instead of waiting for the
-// schedule, then says what changed.
-export function UserSyncButton() {
+// A clean run's message goes away by itself; one with problems stays until
+// it is dismissed, so it can be read.
+const SUCCESS_MESSAGE_MS = 5000;
+
+type SyncButtonProps = {
+  // A SyncKind of lib/sync/sync-jobs.ts.
+  kind: string;
+  label: string;
+};
+
+// Runs a sync now instead of waiting for the schedule, then says what
+// changed.
+export function SyncButton({ kind, label }: SyncButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<SyncMessage | null>(null);
 
+  useEffect(() => {
+    if (!message?.ok) return;
+    const timer = setTimeout(() => setMessage(null), SUCCESS_MESSAGE_MS);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   function sync() {
     setMessage(null);
-    startTransition(async () => setMessage(await syncUsersNow()));
+    startTransition(async () => setMessage(await runSyncNow(kind)));
   }
 
   return (
     <div className="flex flex-col items-end gap-2">
       <Button variant="outline" onClick={sync} disabled={isPending}>
         <RefreshCw aria-hidden className={cn(isPending && "animate-spin")} />
-        {isPending ? "Syncing…" : "Sync from Entra"}
+        {isPending ? "Syncing…" : label}
       </Button>
       {message && (
         <div
           role="status"
           className={cn(
-            "flex max-w-sm items-start gap-2 rounded-lg border px-3 py-2 text-sm",
+            "flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-sm",
             message.ok
               ? "bg-muted/50"
               : "border-destructive/40 bg-destructive/5",

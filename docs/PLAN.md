@@ -202,8 +202,8 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Sync one device from its detail page: clicking the Intune badge pulls that device from Graph; the cloud icon animates while it runs
 - [ ] Keep the last sync error per asset (e.g. `lastIntuneSyncError`) and show it in the Intune card
 - [ ] "Request device check-in" in the Intune card (Graph `syncDevice`, needs `DeviceManagementManagedDevices.PrivilegedOperations.All`)
-- [ ] Sync log page (`SyncRun`)
-- [x] User sync from Entra ID (`User.Read.All` + `GroupMember.Read.All` Application permissions): members of the employees group; name, email, department, job title; "Sync from Entra" on the users page and `POST /api/cron/user-sync`
+- [x] Sync log page (`SyncRun`): the Azure sync page (`/admin/sync`) runs each sync and lists recent runs; each sync is one entry in `lib/sync/sync-jobs.ts`
+- [x] User sync from Entra ID (`User.Read.All` + `GroupMember.Read.All` Application permissions): members of the employees group; name, email, department, job title; "Sync from Entra" on the Azure sync page and `POST /api/cron/user-sync`
 - [ ] Schedule the user sync (daily) on the chosen host
 
 **Acceptance criterion:** running sync twice in a row creates no duplicates and manual changes are not lost.

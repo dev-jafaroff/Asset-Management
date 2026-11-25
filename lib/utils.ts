@@ -81,6 +81,13 @@ export function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / DAY);
 }
 
+// formatDuration(4200) → "4s", formatDuration(125000) → "2m 5s"
+export function formatDuration(ms: number): string {
+  const seconds = Math.max(1, Math.round(ms / 1000));
+  const minutes = Math.floor(seconds / 60);
+  return minutes > 0 ? `${minutes}m ${seconds % 60}s` : `${seconds}s`;
+}
+
 // formatCount(3, "asset") → "3 assets", formatCount(1, "asset") → "1 asset"
 export function formatCount(
   count: number,
