@@ -1,15 +1,20 @@
 import { assetFormFieldLabels } from "@/lib/assets/asset-form";
-import type { FieldChange } from "@/lib/assets/asset-detail";
+import {
+  getIntuneSyncStatus,
+  type FieldChange,
+} from "@/lib/assets/asset-detail";
 import { normalizeSerial } from "@/lib/assets/format";
 import { normalizeEmail } from "@/lib/auth/entra";
 import { Prisma } from "@/lib/generated/prisma/client";
 import {
+  describeDevice,
   getIntuneTenantIds,
   listIntuneDevices,
   type IntuneDevice,
 } from "@/lib/intune/devices";
+import { addNewDevices, getPcTag } from "@/lib/intune/new-devices";
 import { prisma } from "@/lib/prisma";
-import { runSync, type SyncTally } from "@/lib/sync/sync-run";
+import { runSync, type SyncMessage, type SyncTally } from "@/lib/sync/sync-run";
 import { formatCount } from "@/lib/utils";
 
 // Our assets, kept up to date from Intune (docs/PLAN.md, Intune sync):
@@ -21,11 +26,13 @@ import { formatCount } from "@/lib/utils";
 //   record with the serial is the asset's; the other gives its second OS
 //   and counts as a check-in, so the device is not stale while it runs
 //   Linux.
-// - Nothing is created: every company device has a label, so a device we do
-//   not have is reported, to be fixed (usually a mistyped serial) or added
-//   by hand. Personal devices are left alone.
-// - The holder is never changed; Intune's primary user is kept as a
-//   suggestion.
+// - A device we do not have is added when its name is a free PC tag (a new
+//   laptop named "PC-00123" after its label), with everything Intune knows
+//   (lib/intune/new-devices.ts). Any other is reported, to be fixed (usually
+//   a mistyped serial or hostname) or added by hand: no tag is made up here.
+//   Personal devices are left alone.
+// - The holder of an asset we have is never changed; Intune's primary user
+//   is kept as a suggestion.
 // - An asset whose device left Intune is flagged missingInIntune, never
 //   deleted. Only after every tenant was read, so a tenant that failed does
 //   not make its devices look gone.
@@ -64,6 +71,10 @@ function reportsSerial(device: IntuneDevice): boolean {
   return !osWithoutSerial.some((name) => os.startsWith(name));
 }
 
+function isCompanyDevice(device: IntuneDevice): boolean {
+  return device.managedDeviceOwnerType !== "personal";
+}
+
 const assetSelect = {
   id: true,
   assetTag: true,
@@ -80,6 +91,12 @@ const assetSelect = {
 } satisfies Prisma.AssetSelect;
 
 type SyncedAsset = Prisma.AssetGetPayload<{ select: typeof assetSelect }>;
+
+function loadAssets(
+  where: Prisma.AssetWhereInput = {},
+): Promise<SyncedAsset[]> {
+  return prisma.asset.findMany({ where, select: assetSelect });
+}
 
 // An asset and the Intune record that is its device; a dual-boot device's
 // other record is `secondary`. lastCheckIn is the latest of both.
@@ -159,15 +176,143 @@ function isSameTime(a: Date | null, b: Date | null): boolean {
   return (a?.getTime() ?? null) === (b?.getTime() ?? null);
 }
 
-// e.g. "PC-00049 (Windows, serial 5CD311KCYM, HP Pavilion)"
-function describeDevice(device: IntuneDevice): string {
-  const details = [
-    device.operatingSystem,
-    device.serialNumber && `serial ${device.serialNumber}`,
-    [device.manufacturer, device.model].filter(Boolean).join(" "),
-  ].filter(Boolean);
-  return `${device.deviceName ?? "A device"} (${details.join(", ")})`;
+// ─── Reading and matching ────────────────────────────────────────────────────
+
+type DeviceRead = { devices: IntuneDevice[]; isEveryTenantRead: boolean };
+
+// Every device of every Intune tenant. One tenant failing (e.g. no admin
+// consent) does not stop the others.
+async function readDevices(tally: SyncTally): Promise<DeviceRead> {
+  const { tenantIds, errors } = getIntuneTenantIds();
+  tally.errors.push(...errors);
+
+  const devices: IntuneDevice[] = [];
+  let isEveryTenantRead = errors.length === 0 && tenantIds.length > 0;
+  for (const tenantId of tenantIds) {
+    try {
+      const result = await listIntuneDevices(tenantId);
+      devices.push(...result.devices);
+      if (result.invalid > 0) {
+        isEveryTenantRead = false;
+        tally.errors.push(
+          `Skipped ${formatCount(result.invalid, "device")} of tenant ${tenantId} that Graph sent in an unexpected shape.`,
+        );
+      }
+    } catch (error) {
+      isEveryTenantRead = false;
+      tally.errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  return { devices, isEveryTenantRead };
 }
+
+// Devices named after a tag (as they are, e.g. "PC-00137") whose serial is
+// not that asset's: usually a serial typed wrong here or in Snipe-IT.
+function findTagMismatch(
+  device: IntuneDevice,
+  byTag: Map<string, SyncedAsset>,
+): string | null {
+  const asset = device.deviceName
+    ? byTag.get(device.deviceName.toUpperCase())
+    : undefined;
+  if (!asset || !device.serialNumber) return null;
+  const serial = normalizeSerial(device.serialNumber);
+  if (asset.serial && normalizeSerial(asset.serial) === serial) return null;
+  return `${asset.assetTag}: the Intune device of that name has serial ${device.serialNumber}, this asset has ${asset.serial ?? "none"}.`;
+}
+
+type MatchResult = {
+  // By asset id.
+  matches: Map<number, Match>;
+  // Company devices no asset was found for.
+  unmatched: IntuneDevice[];
+  // What looks wrong, e.g. a serial typed differently here and in Intune.
+  problems: string[];
+};
+
+// Links the devices to the given assets: by serial (Windows, macOS), then by
+// name (Linux, alone or as the second system of a dual-boot device).
+function matchDevices(
+  devices: IntuneDevice[],
+  assets: SyncedAsset[],
+): MatchResult {
+  const bySerial = new Map(
+    assets.flatMap((asset) =>
+      asset.serial ? [[normalizeSerial(asset.serial), asset] as const] : [],
+    ),
+  );
+  const byTag = new Map(
+    assets.flatMap((asset) =>
+      asset.assetTag ? [[asset.assetTag.toUpperCase(), asset] as const] : [],
+    ),
+  );
+  const result: MatchResult = {
+    matches: new Map(),
+    unmatched: [],
+    problems: [],
+  };
+
+  const withSerial = devices.filter((device) => reportsSerial(device));
+  const bySerialKey = getLatestBy(withSerial, (device) =>
+    device.serialNumber ? normalizeSerial(device.serialNumber) : null,
+  );
+  for (const [serial, device] of bySerialKey) {
+    const tagMismatch = findTagMismatch(device, byTag);
+    if (tagMismatch) result.problems.push(tagMismatch);
+    const asset = bySerial.get(serial);
+    if (asset) {
+      result.matches.set(asset.id, {
+        asset,
+        device,
+        secondary: null,
+        lastCheckIn: device.lastSyncDateTime ?? null,
+      });
+    } else if (!tagMismatch && isCompanyDevice(device)) {
+      result.unmatched.push(device);
+    }
+  }
+  for (const device of withSerial) {
+    if (!device.serialNumber && isCompanyDevice(device)) {
+      result.problems.push(
+        `${describeDevice(device)} has no serial in Intune, so it cannot be matched.`,
+      );
+    }
+  }
+
+  const byName = getLatestBy(
+    devices.filter((device) => !reportsSerial(device)),
+    (device) => device.deviceName?.toUpperCase() ?? null,
+  );
+  for (const [name, device] of byName) {
+    const asset = byTag.get(name);
+    if (!asset) {
+      if (isCompanyDevice(device)) result.unmatched.push(device);
+      continue;
+    }
+    const lastCheckIn = device.lastSyncDateTime ?? null;
+    const known = result.matches.get(asset.id);
+    if (known) {
+      known.secondary = device;
+      known.lastCheckIn = getLaterDate(known.lastCheckIn, lastCheckIn);
+    } else {
+      result.matches.set(asset.id, {
+        asset,
+        device,
+        secondary: null,
+        lastCheckIn,
+      });
+    }
+  }
+  return result;
+}
+
+function describeUnmatched(device: IntuneDevice): string {
+  return reportsSerial(device)
+    ? `${describeDevice(device)} is in Intune but not here: fix its serial, or name it after its tag.`
+    : `${describeDevice(device)} sends no serial and its name is no asset tag here: name the device after its tag.`;
+}
+
+// ─── Writing ─────────────────────────────────────────────────────────────────
 
 async function updateAsset(match: Match, tally: SyncTally): Promise<void> {
   const { asset, device } = match;
@@ -213,28 +358,17 @@ async function updateAsset(match: Match, tally: SyncTally): Promise<void> {
   }
 }
 
-// Devices named after a tag (as they are, e.g. "PC-00137") whose serial is
-// not that asset's: usually a serial typed wrong here or in Snipe-IT.
-function findTagMismatch(
-  device: IntuneDevice,
-  byTag: Map<string, SyncedAsset>,
-): string | null {
-  const asset = device.deviceName
-    ? byTag.get(device.deviceName.toUpperCase())
-    : undefined;
-  if (!asset || !device.serialNumber) return null;
-  const serial = normalizeSerial(device.serialNumber);
-  if (asset.serial && normalizeSerial(asset.serial) === serial) return null;
-  return `${asset.assetTag}: the Intune device of that name has serial ${device.serialNumber}, this asset has ${asset.serial ?? "none"}.`;
-}
-
-// Assets whose device is no longer in Intune (wiped, retired, removed).
-async function flagMissing(linked: Set<number>, tally: SyncTally) {
+// Assets linked to Intune whose device is no longer there (wiped, retired,
+// removed): every one not in `linked`, or only `assetId` when given.
+async function flagMissing(
+  tally: SyncTally,
+  { linked, assetId }: { linked?: Set<number>; assetId?: number },
+) {
   const gone = await prisma.asset.findMany({
     where: {
       intuneId: { not: null },
       missingInIntune: false,
-      id: { notIn: [...linked] },
+      id: assetId ?? { notIn: [...(linked ?? [])] },
     },
     select: { id: true },
   });
@@ -247,8 +381,8 @@ async function flagMissing(linked: Set<number>, tally: SyncTally) {
       data: { missingInIntune: true },
     }),
     prisma.assetEvent.createMany({
-      data: ids.map((assetId) => ({
-        assetId,
+      data: ids.map((id) => ({
+        assetId: id,
         type: "SYNC" as const,
         note: "No longer in Intune.",
       })),
@@ -257,119 +391,73 @@ async function flagMissing(linked: Set<number>, tally: SyncTally) {
   tally.missing += ids.length;
 }
 
+// ─── Syncs ───────────────────────────────────────────────────────────────────
+
 async function syncDevicesFromIntune(tally: SyncTally): Promise<void> {
-  const { tenantIds, errors } = getIntuneTenantIds();
-  tally.errors.push(...errors);
+  const { devices, isEveryTenantRead } = await readDevices(tally);
 
-  // One tenant failing (e.g. no admin consent) does not stop the others.
-  const devices: IntuneDevice[] = [];
-  let isEveryTenantRead = errors.length === 0 && tenantIds.length > 0;
-  for (const tenantId of tenantIds) {
-    try {
-      const result = await listIntuneDevices(tenantId);
-      devices.push(...result.devices);
-      if (result.invalid > 0) {
-        isEveryTenantRead = false;
-        tally.errors.push(
-          `Skipped ${formatCount(result.invalid, "device")} of tenant ${tenantId} that Graph sent in an unexpected shape.`,
-        );
-      }
-    } catch (error) {
-      isEveryTenantRead = false;
-      tally.errors.push(error instanceof Error ? error.message : String(error));
-    }
+  let result = matchDevices(devices, await loadAssets());
+  const named = result.unmatched.filter((device) => getPcTag(device));
+  if (named.length > 0) {
+    await addNewDevices(named, tally);
+    // The new assets are linked like any other.
+    result = matchDevices(devices, await loadAssets());
   }
+  tally.errors.push(
+    ...result.problems,
+    ...result.unmatched.map(describeUnmatched),
+  );
 
-  const matches = await matchDevices(devices, tally);
-  for (const match of matches.values()) await updateAsset(match, tally);
+  for (const match of result.matches.values()) await updateAsset(match, tally);
 
-  if (isEveryTenantRead) await flagMissing(new Set(matches.keys()), tally);
-  else {
+  if (isEveryTenantRead) {
+    await flagMissing(tally, { linked: new Set(result.matches.keys()) });
+  } else {
     tally.errors.push(
       "Not every tenant could be read, so no asset was flagged as missing in Intune.",
     );
   }
 }
 
-// Every asset that has a device in Intune, by asset id. What cannot be
-// matched is reported, except personal devices.
-async function matchDevices(
-  devices: IntuneDevice[],
-  tally: SyncTally,
-): Promise<Map<number, Match>> {
-  const assets = await prisma.asset.findMany({
-    where: { OR: [{ serial: { not: null } }, { intuneId: { not: null } }] },
-    select: assetSelect,
-  });
-  const bySerial = new Map(
-    assets.flatMap((asset) =>
-      asset.serial ? [[normalizeSerial(asset.serial), asset] as const] : [],
-    ),
-  );
-  const byTag = new Map(
-    assets.flatMap((asset) =>
-      asset.assetTag ? [[asset.assetTag.toUpperCase(), asset] as const] : [],
-    ),
-  );
-
-  const matches = new Map<number, Match>();
-  const report = (device: IntuneDevice, problem: string) => {
-    if (device.managedDeviceOwnerType !== "personal") {
-      tally.errors.push(`${describeDevice(device)} ${problem}`);
-    }
-  };
-
-  // By serial: Windows and macOS.
-  const withSerial = devices.filter((device) => reportsSerial(device));
-  const bySerialKey = getLatestBy(withSerial, (device) =>
-    device.serialNumber ? normalizeSerial(device.serialNumber) : null,
-  );
-  for (const [serial, device] of bySerialKey) {
-    const tagMismatch = findTagMismatch(device, byTag);
-    if (tagMismatch) tally.errors.push(tagMismatch);
-    const asset = bySerial.get(serial);
-    if (asset) {
-      matches.set(asset.id, {
-        asset,
-        device,
-        secondary: null,
-        lastCheckIn: device.lastSyncDateTime ?? null,
-      });
-    } else if (!tagMismatch) {
-      report(device, "is in Intune but not here: fix its serial or add it.");
-    }
-  }
-  for (const device of withSerial.filter((device) => !device.serialNumber)) {
-    report(device, "has no serial in Intune, so it cannot be matched.");
-  }
-
-  // By name: Linux, alone or as the second system of a dual-boot device.
-  const byName = getLatestBy(
-    devices.filter((device) => !reportsSerial(device)),
-    (device) => device.deviceName?.toUpperCase() ?? null,
-  );
-  for (const [name, device] of byName) {
-    const asset = byTag.get(name);
-    if (!asset) {
-      report(
-        device,
-        "sends no serial and its name is no asset tag here: name the device after its tag.",
-      );
-      continue;
-    }
-    const lastCheckIn = device.lastSyncDateTime ?? null;
-    const known = matches.get(asset.id);
-    if (known) {
-      known.secondary = device;
-      known.lastCheckIn = getLaterDate(known.lastCheckIn, lastCheckIn);
-    } else {
-      matches.set(asset.id, { asset, device, secondary: null, lastCheckIn });
-    }
-  }
-  return matches;
-}
-
 // Started by the schedule (/api/cron/intune-sync) or by the Azure sync page.
 export function syncIntune() {
   return runSync("INTUNE", syncDevicesFromIntune);
+}
+
+// One asset, now: the Intune badge on its page. Reads every device (a few
+// hundred, one page per tenant), so a re-enrolled or dual-boot device is
+// matched as in the full sync. Not recorded as a sync run.
+export async function syncIntuneAsset(assetId: number): Promise<SyncMessage> {
+  const tally: SyncTally = { created: 0, updated: 0, missing: 0, errors: [] };
+  const { devices, isEveryTenantRead } = await readDevices(tally);
+  const [asset] = await loadAssets({ id: assetId });
+  if (!asset) {
+    return { ok: false, text: "This asset no longer exists.", errors: [] };
+  }
+
+  const match = matchDevices(devices, [asset]).matches.get(asset.id);
+  if (match) await updateAsset(match, tally);
+  else if (isEveryTenantRead) await flagMissing(tally, { assetId: asset.id });
+
+  // The device's own check-in can be old (e.g. at the service): say so, as
+  // syncing again will not change it.
+  const checkIn = match
+    ? getIntuneSyncStatus({
+        lastIntuneSync: match.lastCheckIn,
+        missingInIntune: false,
+      })
+    : null;
+  const text = !match
+    ? "Not found in Intune."
+    : [
+        tally.updated > 0 ? "Updated from Intune." : "No changes in Intune.",
+        checkIn?.state === "synced" ? null : `${checkIn?.label}.`,
+      ]
+        .filter(Boolean)
+        .join(" ");
+  return {
+    ok: Boolean(match) && tally.errors.length === 0,
+    text,
+    errors: tally.errors,
+  };
 }

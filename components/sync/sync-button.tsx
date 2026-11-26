@@ -11,15 +11,9 @@ import { cn } from "@/lib/utils";
 // it is dismissed, so it can be read.
 const SUCCESS_MESSAGE_MS = 5000;
 
-type SyncButtonProps = {
-  // A SyncKind of lib/sync/sync-jobs.ts.
-  kind: string;
-  label: string;
-};
-
-// Runs a sync now instead of waiting for the schedule, then says what
-// changed.
-export function SyncButton({ kind, label }: SyncButtonProps) {
+// Runs a sync and keeps what it said: shared by the sync buttons and the
+// Intune badge on an asset's page.
+export function useSyncAction(action: () => Promise<SyncMessage>) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<SyncMessage | null>(null);
 
@@ -29,46 +23,80 @@ export function SyncButton({ kind, label }: SyncButtonProps) {
     return () => clearTimeout(timer);
   }, [message]);
 
-  function sync() {
+  function run() {
     setMessage(null);
-    startTransition(async () => setMessage(await runSyncNow(kind)));
+    startTransition(async () => setMessage(await action()));
   }
+
+  return { isPending, message, run, dismiss: () => setMessage(null) };
+}
+
+// What a sync did, with its problems listed under it.
+export function SyncMessageBox({
+  message,
+  onDismiss,
+  className,
+}: {
+  message: SyncMessage;
+  onDismiss: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      className={cn(
+        "flex items-start gap-2 rounded-lg border px-3 py-2 text-sm",
+        message.ok ? "bg-muted/50" : "border-destructive/40 bg-destructive/5",
+        className,
+      )}
+    >
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="font-medium">{message.text}</p>
+        {message.errors.length > 0 && (
+          <ul className="list-inside list-disc text-muted-foreground">
+            {message.errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+      >
+        <X aria-hidden />
+      </Button>
+    </div>
+  );
+}
+
+type SyncButtonProps = {
+  // A SyncKind of lib/sync/sync-jobs.ts.
+  kind: string;
+  label: string;
+};
+
+// Runs a sync now instead of waiting for the schedule, then says what
+// changed.
+export function SyncButton({ kind, label }: SyncButtonProps) {
+  const { isPending, message, run, dismiss } = useSyncAction(() =>
+    runSyncNow(kind),
+  );
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <Button variant="outline" onClick={sync} disabled={isPending}>
+      <Button variant="outline" onClick={run} disabled={isPending}>
         <RefreshCw aria-hidden className={cn(isPending && "animate-spin")} />
         {isPending ? "Syncing…" : label}
       </Button>
       {message && (
-        <div
-          role="status"
-          className={cn(
-            "flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-sm",
-            message.ok
-              ? "bg-muted/50"
-              : "border-destructive/40 bg-destructive/5",
-          )}
-        >
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="font-medium">{message.text}</p>
-            {message.errors.length > 0 && (
-              <ul className="list-inside list-disc text-muted-foreground">
-                {message.errors.map((error) => (
-                  <li key={error}>{error}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setMessage(null)}
-            aria-label="Dismiss"
-          >
-            <X aria-hidden />
-          </Button>
-        </div>
+        <SyncMessageBox
+          message={message}
+          onDismiss={dismiss}
+          className="w-full"
+        />
       )}
     </div>
   );

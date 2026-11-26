@@ -86,3 +86,13 @@ export async function listIntuneDevices(
   }
   return { devices, invalid };
 }
+
+// e.g. "PC-00049 (Windows, serial 5CD311KCYM, HP Pavilion)", for messages.
+export function describeDevice(device: IntuneDevice): string {
+  const details = [
+    device.operatingSystem,
+    device.serialNumber && `serial ${device.serialNumber}`,
+    [device.manufacturer, device.model].filter(Boolean).join(" "),
+  ].filter(Boolean);
+  return `${device.deviceName ?? "A device"} (${details.join(", ")})`;
+}

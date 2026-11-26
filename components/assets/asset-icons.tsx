@@ -65,6 +65,7 @@ import {
   getCategoryIconLabel,
   type CategoryIconKey,
 } from "@/lib/schemas/lookup";
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 // Icon registry: the one place that decides which icon an asset type uses
@@ -151,16 +152,47 @@ function getCategoryIcon(key: string | null): LucideIcon {
   return key !== null && isCategoryIconKey(key) ? categoryIcons[key] : Package;
 }
 
-// Rounder cloud than lucide's, as in the design mockups.
+// Rounder cloud than lucide's, as in the design mockups. Drawn clockwise
+// from the bottom left, which SyncingCloud's animation follows.
+const CLOUD_PATH = "M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z";
+
 const SourceCloud = createLucideIcon("SourceCloud", [
-  [
-    "path",
-    {
-      d: "M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z",
-      key: "cloud",
-    },
-  ],
+  ["path", { d: CLOUD_PATH, key: "cloud" }],
 ]);
+
+// Microsoft's four colors, travelling around the cloud while a sync runs.
+const syncColors = ["#f25022", "#7fba00", "#00a4ef", "#ffb900"];
+const SEGMENT = 100 / syncColors.length;
+
+// The Intune cloud while it syncs: it stays still and its outline cycles
+// through the colors, clockwise. Without motion (reduced motion settings)
+// it shows the four colors standing.
+export function SyncingCloud({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeWidth={2}
+      strokeLinecap="butt"
+      strokeLinejoin="round"
+      className={cn("size-4", className)}
+    >
+      {syncColors.map((color, index) => (
+        <path
+          key={color}
+          d={CLOUD_PATH}
+          pathLength={100}
+          stroke={color}
+          strokeDasharray={`${SEGMENT} ${100 - SEGMENT}`}
+          strokeDashoffset={-index * SEGMENT}
+          style={{ "--dash-start": -index * SEGMENT } as CSSProperties}
+          className="animate-[outline-chase_1.6s_linear_infinite] motion-reduce:animate-none"
+        />
+      ))}
+    </svg>
+  );
+}
 
 // Systems a record can come from (badges, card titles). Manual entry has none.
 export const assetSourceIcons: Record<AssetSource, LucideIcon | null> = {

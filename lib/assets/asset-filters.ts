@@ -112,17 +112,15 @@ export const assetFilters = [
       const family = osFamilies.find((family) => family.value === value);
       return family ? whereOsFamily(family) : undefined;
     },
+    // Every system for types that have one (PCs, VMs, phones), even one no
+    // device runs yet (e.g. macOS before the first Mac); none for the rest.
     loadOptions: async (assets) => {
-      const counts = await Promise.all(
-        osFamilies.map((family) =>
-          prisma.asset.count({
-            where: { AND: [assets, whereOsFamily(family)] },
-          }),
-        ),
-      );
-      return osFamilies
-        .filter((_, index) => counts[index] > 0)
-        .map(({ value, label }) => ({ value, label }));
+      const withOs = await prisma.asset.count({
+        where: { AND: [assets, { operatingSystem: { not: null } }] },
+      });
+      return withOs > 0
+        ? osFamilies.map(({ value, label }) => ({ value, label }))
+        : [];
     },
   },
 ] as const satisfies readonly AssetFilterDefinition[];

@@ -33,7 +33,7 @@ export const syncJobs: readonly SyncJob[] = [
     kind: "INTUNE",
     title: "Intune",
     description:
-      "Devices of both tenants, matched to our assets by serial. Nothing is created and holders are never changed.",
+      "Devices of both tenants, matched to our assets by serial (Linux by name). New PCs named after their label are added as Pending; holders are never changed.",
     buttonLabel: "Sync from Intune",
     countLabels: {
       created: "added",
