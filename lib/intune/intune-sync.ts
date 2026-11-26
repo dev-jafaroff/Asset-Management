@@ -18,8 +18,9 @@ import { formatCount } from "@/lib/utils";
 //   (e.g. "PC-00049"). Intune then owns the asset's name, OS, OS version and
 //   check-in time.
 // - A dual-boot device is in Intune twice, as Windows and as Linux. The
-//   record with the serial is the asset's; the other only counts as a
-//   check-in, so the device is not stale while it runs Linux.
+//   record with the serial is the asset's; the other gives its second OS
+//   and counts as a check-in, so the device is not stale while it runs
+//   Linux.
 // - Nothing is created: every company device has a label, so a device we do
 //   not have is reported, to be fixed (usually a mistyped serial) or added
 //   by hand. Personal devices are left alone.
@@ -70,6 +71,8 @@ const assetSelect = {
   name: true,
   operatingSystem: true,
   osVersion: true,
+  secondaryOperatingSystem: true,
+  secondaryOsVersion: true,
   intuneId: true,
   intunePrimaryUser: true,
   lastIntuneSync: true,
@@ -78,11 +81,12 @@ const assetSelect = {
 
 type SyncedAsset = Prisma.AssetGetPayload<{ select: typeof assetSelect }>;
 
-// An asset and the Intune record that is its device. lastCheckIn is the
-// latest of every record of it (a dual-boot device has two).
+// An asset and the Intune record that is its device; a dual-boot device's
+// other record is `secondary`. lastCheckIn is the latest of both.
 type Match = {
   asset: SyncedAsset;
   device: IntuneDevice;
+  secondary: IntuneDevice | null;
   lastCheckIn: Date | null;
 };
 
@@ -92,17 +96,25 @@ type IntuneFields = Pick<
   | "name"
   | "operatingSystem"
   | "osVersion"
+  | "secondaryOperatingSystem"
+  | "secondaryOsVersion"
   | "intuneId"
   | "intunePrimaryUser"
   | "lastIntuneSync"
   | "missingInIntune"
 >;
 
-function toIntuneFields({ device, lastCheckIn }: Match): IntuneFields {
+function toIntuneFields({
+  device,
+  secondary,
+  lastCheckIn,
+}: Match): IntuneFields {
   return {
     name: device.deviceName,
     operatingSystem: device.operatingSystem,
     osVersion: device.osVersion,
+    secondaryOperatingSystem: secondary?.operatingSystem ?? null,
+    secondaryOsVersion: secondary?.osVersion ?? null,
     intuneId: device.id,
     intunePrimaryUser: device.userPrincipalName
       ? normalizeEmail(device.userPrincipalName)
@@ -118,6 +130,8 @@ const loggedFields = [
   ["name", assetFormFieldLabels.name],
   ["operatingSystem", assetFormFieldLabels.operatingSystem],
   ["osVersion", "OS version"],
+  ["secondaryOperatingSystem", "Second OS"],
+  ["secondaryOsVersion", "Second OS version"],
 ] as const;
 
 function getLoggedChanges(
@@ -318,6 +332,7 @@ async function matchDevices(
       matches.set(asset.id, {
         asset,
         device,
+        secondary: null,
         lastCheckIn: device.lastSyncDateTime ?? null,
       });
     } else if (!tagMismatch) {
@@ -345,9 +360,10 @@ async function matchDevices(
     const lastCheckIn = device.lastSyncDateTime ?? null;
     const known = matches.get(asset.id);
     if (known) {
+      known.secondary = device;
       known.lastCheckIn = getLaterDate(known.lastCheckIn, lastCheckIn);
     } else {
-      matches.set(asset.id, { asset, device, lastCheckIn });
+      matches.set(asset.id, { asset, device, secondary: null, lastCheckIn });
     }
   }
   return matches;

@@ -3,7 +3,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import {
-  getPositiveIntParam,
+  getParam,
   type FilterOption,
   type SearchParams,
 } from "@/lib/search-params";
@@ -14,10 +14,48 @@ type AssetFilterDefinition = {
   label: string;
   // Dropdown entry that clears the filter.
   allLabel: string;
-  where: (id: number) => Prisma.AssetWhereInput;
+  // The condition for a value from the URL; undefined for a value that is
+  // not valid (e.g. ?company=abc), which is ignored rather than failing the
+  // page.
+  where: (value: string) => Prisma.AssetWhereInput | undefined;
   // Only values that assets of this type actually use, so no choice leads to an empty list.
   loadOptions: (assets: Prisma.AssetWhereInput) => Promise<FilterOption[]>;
 };
+
+// A filter whose values are ids, e.g. ?company=2.
+function whereId(
+  where: (id: number) => Prisma.AssetWhereInput,
+): (value: string) => Prisma.AssetWhereInput | undefined {
+  return (value) => {
+    const id = Number(value);
+    return Number.isInteger(id) && id > 0 ? where(id) : undefined;
+  };
+}
+
+// Systems as the OS filter groups them. A device is in a group when its OS,
+// or a dual-boot PC's second one, contains one of the words: Intune's
+// "Linux (ubuntu)", or "Ubuntu 22.04" typed for a VM.
+const osFamilies = [
+  { value: "windows", label: "Windows", words: ["Windows"] },
+  { value: "macos", label: "macOS", words: ["macOS", "Mac OS"] },
+  { value: "linux", label: "Linux", words: ["Linux", "Ubuntu", "Debian"] },
+] as const;
+
+type OsFamily = (typeof osFamilies)[number];
+
+function whereOsFamily(family: OsFamily): Prisma.AssetWhereInput {
+  return {
+    OR: family.words.flatMap((word) => [
+      { operatingSystem: { contains: word, mode: "insensitive" as const } },
+      {
+        secondaryOperatingSystem: {
+          contains: word,
+          mode: "insensitive" as const,
+        },
+      },
+    ]),
+  };
+}
 
 // Dropdown filters on asset lists. Adding a filter means adding an entry here.
 export const assetFilters = [
@@ -25,7 +63,7 @@ export const assetFilters = [
     param: "company",
     label: "Company",
     allLabel: "All companies",
-    where: (id) => ({ companyId: id }),
+    where: whereId((id) => ({ companyId: id })),
     loadOptions: async (assets) => {
       const companies = await prisma.company.findMany({
         where: { assets: { some: assets } },
@@ -39,7 +77,7 @@ export const assetFilters = [
     param: "location",
     label: "Location",
     allLabel: "All locations",
-    where: (id) => ({ locationId: id }),
+    where: whereId((id) => ({ locationId: id })),
     loadOptions: async (assets) => {
       const locations = await prisma.location.findMany({
         where: { assets: { some: assets } },
@@ -53,7 +91,7 @@ export const assetFilters = [
     param: "model",
     label: "Model",
     allLabel: "All models",
-    where: (id) => ({ modelId: id }),
+    where: whereId((id) => ({ modelId: id })),
     loadOptions: async (assets) => {
       const models = await prisma.assetModel.findMany({
         where: { assets: { some: assets } },
@@ -66,19 +104,43 @@ export const assetFilters = [
       }));
     },
   },
+  {
+    param: "os",
+    label: "OS",
+    allLabel: "All systems",
+    where: (value) => {
+      const family = osFamilies.find((family) => family.value === value);
+      return family ? whereOsFamily(family) : undefined;
+    },
+    loadOptions: async (assets) => {
+      const counts = await Promise.all(
+        osFamilies.map((family) =>
+          prisma.asset.count({
+            where: { AND: [assets, whereOsFamily(family)] },
+          }),
+        ),
+      );
+      return osFamilies
+        .filter((_, index) => counts[index] > 0)
+        .map(({ value, label }) => ({ value, label }));
+    },
+  },
 ] as const satisfies readonly AssetFilterDefinition[];
 
 export type AssetFilterParam = (typeof assetFilters)[number]["param"];
 
-// Selected ids by param, e.g. { company: 2, model: 5 }.
-export type AssetFilterValues = Partial<Record<AssetFilterParam, number>>;
+// Selected values by param, e.g. { company: "2", os: "linux" }.
+export type AssetFilterValues = Partial<Record<AssetFilterParam, string>>;
 
-// Invalid ids (e.g. ?company=abc) are ignored rather than failing the page.
+// Values a filter does not know (e.g. ?company=abc) are ignored rather than
+// failing the page.
 export function parseAssetFilters(params: SearchParams): AssetFilterValues {
   const values: AssetFilterValues = {};
   for (const filter of assetFilters) {
-    const id = getPositiveIntParam(params, filter.param);
-    if (id !== undefined) values[filter.param] = id;
+    const value = getParam(params, filter.param);
+    if (value !== undefined && filter.where(value)) {
+      values[filter.param] = value;
+    }
   }
   return values;
 }
@@ -88,8 +150,9 @@ export function buildAssetFilterWhere(
 ): Prisma.AssetWhereInput {
   return {
     AND: assetFilters.flatMap((filter) => {
-      const id = values[filter.param];
-      return id === undefined ? [] : [filter.where(id)];
+      const value = values[filter.param];
+      const where = value === undefined ? undefined : filter.where(value);
+      return where ? [where] : [];
     }),
   };
 }

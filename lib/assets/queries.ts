@@ -26,6 +26,8 @@ export const assetListSelect = {
   phoneNumber: true,
   operatingSystem: true,
   osVersion: true,
+  secondaryOperatingSystem: true,
+  secondaryOsVersion: true,
   vmHost: true,
   vCpu: true,
   ramGb: true,

@@ -4,7 +4,7 @@ import {
   type AssetFormField,
 } from "@/lib/assets/asset-form";
 import { assetTypeConfigs, getAssetTypeConfig } from "@/lib/assets/asset-types";
-import { getAssetDisplayStatus } from "@/lib/assets/format";
+import { getAssetDisplayStatus, joinOsName } from "@/lib/assets/format";
 import {
   listAssetsForExport,
   type AssetExportItem,
@@ -52,6 +52,12 @@ const assetExportColumns: AssetExportColumn[] = [
     header: "OS version",
     field: "operatingSystem",
     value: (asset) => asset.osVersion,
+  },
+  {
+    header: "Second OS (dual boot)",
+    field: "operatingSystem",
+    value: (asset) =>
+      joinOsName(asset.secondaryOperatingSystem, asset.secondaryOsVersion),
   },
   fieldColumn("vmHost", (asset) => asset.vmHost),
   fieldColumn("vCpu", (asset) => asset.vCpu),

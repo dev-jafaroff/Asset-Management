@@ -87,3 +87,29 @@ export function normalizeSerial(serial: string): string {
 export function isIntuneManaged(asset: { intuneId: string | null }): boolean {
   return asset.intuneId !== null;
 }
+
+// joinOsName("Windows", "10.0.26100") → "Windows 10.0.26100"
+export function joinOsName(
+  system: string | null,
+  version: string | null,
+): string | null {
+  return [system, version].filter(Boolean).join(" ") || null;
+}
+
+// Every system of a device, a dual-boot PC's second one after its first:
+// "Windows 10.0.26100 · Linux (ubuntu) 22.04".
+export function formatOperatingSystem(
+  asset: Pick<
+    AssetListItem,
+    | "operatingSystem"
+    | "osVersion"
+    | "secondaryOperatingSystem"
+    | "secondaryOsVersion"
+  >,
+): string | null {
+  const systems = [
+    joinOsName(asset.operatingSystem, asset.osVersion),
+    joinOsName(asset.secondaryOperatingSystem, asset.secondaryOsVersion),
+  ].filter(Boolean);
+  return systems.length > 0 ? systems.join(" · ") : null;
+}

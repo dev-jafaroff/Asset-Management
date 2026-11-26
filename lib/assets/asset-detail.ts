@@ -4,7 +4,11 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
 import { getAssetPath, getAssetTypeBySlug } from "@/lib/assets/asset-types";
 import { assetListSelect } from "@/lib/assets/queries";
-import { formatModelName, isIntuneManaged } from "@/lib/assets/format";
+import {
+  formatModelName,
+  isIntuneManaged,
+  joinOsName,
+} from "@/lib/assets/format";
 import { prisma } from "@/lib/prisma";
 import { getPositiveIntParam } from "@/lib/search-params";
 import { daysBetween, formatAge, formatDate } from "@/lib/utils";
@@ -267,6 +271,17 @@ function buildIntuneSection(asset: AssetDetail): DetailSection | null {
       { label: "Device name", value: asset.name },
       { label: "OS", value: asset.operatingSystem },
       { label: "OS version", value: asset.osVersion, mono: true },
+      ...(asset.secondaryOperatingSystem
+        ? [
+            {
+              label: "Second OS (dual boot)",
+              value: joinOsName(
+                asset.secondaryOperatingSystem,
+                asset.secondaryOsVersion,
+              ),
+            },
+          ]
+        : []),
       { label: "Last sync", value: asset.lastIntuneSync },
       { label: "Sync status", value: syncStatus.label },
     ],

@@ -151,8 +151,12 @@ model Asset {
   phoneNumber String?
 
   // PCs (from Intune) and VMs (manual)
-  operatingSystem String?
-  osVersion       String?
+  operatingSystem          String?
+  osVersion                String?
+  // The other system of a dual-boot PC, from its second Intune record
+  // (e.g. Linux next to Windows).
+  secondaryOperatingSystem String?
+  secondaryOsVersion       String?
 
   // VMs
   vmHost String?
