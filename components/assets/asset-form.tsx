@@ -50,7 +50,7 @@ import {
   type AssetTextField,
 } from "@/lib/assets/asset-form";
 import type { AssetFormOptions } from "@/lib/assets/asset-form-options";
-import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
+import type { AssetType } from "@/lib/generated/prisma/enums";
 import {
   ASSET_NOTES_MAX_LENGTH,
   getAssetFormSchema,
@@ -130,8 +130,8 @@ const listFieldSpecs: Record<AssetListField, ListFieldSpec> = {
 type AssetFormProps = {
   type: AssetType;
   mode: AssetFormMode;
-  // Where the record came from; Intune owns some fields of synced devices.
-  source: AssetSource;
+  // Linked to an Intune device, which owns some of its fields.
+  isIntuneManaged: boolean;
   options: AssetFormOptions;
   defaultValues: AssetFormValues;
   // Saves the values; returns the errors, or opens the asset when it is saved.
@@ -146,7 +146,7 @@ type AssetFormProps = {
 export function AssetForm({
   type,
   mode,
-  source,
+  isIntuneManaged,
   options,
   defaultValues,
   action,
@@ -154,14 +154,14 @@ export function AssetForm({
   cancelHref,
 }: AssetFormProps) {
   const editable = useMemo(
-    () => getEditableAssetFields(type, mode, source),
-    [type, mode, source],
+    () => getEditableAssetFields(type, mode, isIntuneManaged),
+    [type, mode, isIntuneManaged],
   );
   const schema = useMemo(
     () => getAssetFormSchema(type, editable),
     [type, editable],
   );
-  const locked = getLockedAssetFields(mode, source);
+  const locked = getLockedAssetFields(mode, isIntuneManaged);
   // A new asset named after its tag keeps following the tag, until the name
   // is changed by hand.
   const nameFollowsTag = mode === "create" && isNamedAfterTag(type);

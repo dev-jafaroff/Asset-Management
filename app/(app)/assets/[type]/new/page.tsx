@@ -65,7 +65,7 @@ async function NewAssetContent({ params }: Pick<NewAssetPageProps, "params">) {
       <AssetForm
         type={config.type}
         mode="create"
-        source="MANUAL"
+        isIntuneManaged={false}
         options={options}
         defaultValues={getNewAssetFormValues(config.type, {
           assetTag: nextTag,

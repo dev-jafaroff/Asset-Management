@@ -13,7 +13,7 @@ import {
   getAssetTypePath,
   getEditAssetPath,
 } from "@/lib/assets/asset-types";
-import { getAssetDisplayName } from "@/lib/assets/format";
+import { getAssetDisplayName, isIntuneManaged } from "@/lib/assets/format";
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
 import { updateAsset } from "../actions";
@@ -65,7 +65,7 @@ async function EditAssetContent({
       <AssetForm
         type={asset.type}
         mode="edit"
-        source={asset.source}
+        isIntuneManaged={isIntuneManaged(asset)}
         options={options}
         defaultValues={toAssetFormValues(asset)}
         action={updateAsset.bind(null, asset.id)}

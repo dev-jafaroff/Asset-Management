@@ -4,7 +4,7 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
 import { getAssetPath, getAssetTypeBySlug } from "@/lib/assets/asset-types";
 import { assetListSelect } from "@/lib/assets/queries";
-import { formatModelName } from "@/lib/assets/format";
+import { formatModelName, isIntuneManaged } from "@/lib/assets/format";
 import { prisma } from "@/lib/prisma";
 import { getPositiveIntParam } from "@/lib/search-params";
 import { daysBetween, formatAge, formatDate } from "@/lib/utils";
@@ -252,9 +252,9 @@ const typeSections: Record<
   OTHER: () => null,
 };
 
-// Shown for any asset synced from Intune, whatever its type.
+// Shown for any asset linked to Intune, whatever its type or source.
 function buildIntuneSection(asset: AssetDetail): DetailSection | null {
-  if (asset.source !== "INTUNE") return null;
+  if (!isIntuneManaged(asset)) return null;
   const intuneUrl = getIntuneDeviceUrl(asset);
   const syncStatus = getIntuneSyncStatus(asset);
   return {

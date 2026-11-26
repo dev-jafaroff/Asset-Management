@@ -1,4 +1,5 @@
 import type { SyncKind } from "@/lib/generated/prisma/enums";
+import { syncIntune } from "@/lib/intune/intune-sync";
 import type { SyncCountLabels, SyncOutcome } from "@/lib/sync/sync-run";
 import { syncUsers } from "@/lib/users/user-sync";
 
@@ -27,6 +28,19 @@ export const syncJobs: readonly SyncJob[] = [
       missing: "marked as left",
     },
     run: syncUsers,
+  },
+  {
+    kind: "INTUNE",
+    title: "Intune",
+    description:
+      "Devices of both tenants, matched to our assets by serial. Nothing is created and holders are never changed.",
+    buttonLabel: "Sync from Intune",
+    countLabels: {
+      created: "added",
+      updated: "updated",
+      missing: "flagged missing",
+    },
+    run: syncIntune,
   },
 ];
 

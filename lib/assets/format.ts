@@ -81,3 +81,9 @@ export function getCheckoutBlocker(asset: AssetWithStatus): string | null {
 export function normalizeSerial(serial: string): string {
   return serial.replace(/\s+/g, "").toUpperCase();
 }
+
+// Linked to an Intune device by the sync (found by its serial), whether it
+// was added by hand, migrated from Snipe-IT or created from Intune.
+export function isIntuneManaged(asset: { intuneId: string | null }): boolean {
+  return asset.intuneId !== null;
+}

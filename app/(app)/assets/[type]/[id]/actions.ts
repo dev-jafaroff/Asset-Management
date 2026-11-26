@@ -14,6 +14,7 @@ import {
   type AssetFormErrors,
 } from "@/lib/assets/asset-form";
 import { getAssetPath } from "@/lib/assets/asset-types";
+import { isIntuneManaged } from "@/lib/assets/format";
 import {
   checkInAsset,
   checkOutAsset,
@@ -116,12 +117,16 @@ export async function updateAsset(
   if (!id.success) return { message: "Unknown asset." };
   const asset = await prisma.asset.findUnique({
     where: { id: id.data },
-    select: { type: true, source: true },
+    select: { type: true, intuneId: true },
   });
   if (!asset) return { message: "This asset no longer exists." };
 
   // Which fields can change depends on the asset, e.g. Intune owns a PC's name.
-  const editable = getEditableAssetFields(asset.type, "edit", asset.source);
+  const editable = getEditableAssetFields(
+    asset.type,
+    "edit",
+    isIntuneManaged(asset),
+  );
   const input = getAssetFormSchema(asset.type, editable).safeParse(values);
   if (!input.success) return { fields: getFirstFieldErrors(input.error) };
 
