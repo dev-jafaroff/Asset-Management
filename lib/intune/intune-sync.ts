@@ -13,8 +13,13 @@ import { runSync, type SyncTally } from "@/lib/sync/sync-run";
 import { formatCount } from "@/lib/utils";
 
 // Our assets, kept up to date from Intune (docs/PLAN.md, Intune sync):
-// - An Intune device is linked to the asset with the same serial. Intune
-//   then owns its name, OS, OS version and check-in time.
+// - An Intune device is linked to the asset with the same serial. Devices
+//   that send no serial (Linux) are linked by name, which is the asset tag
+//   (e.g. "PC-00049"). Intune then owns the asset's name, OS, OS version and
+//   check-in time.
+// - A dual-boot device is in Intune twice, as Windows and as Linux. The
+//   record with the serial is the asset's; the other only counts as a
+//   check-in, so the device is not stale while it runs Linux.
 // - Nothing is created: every company device has a label, so a device we do
 //   not have is reported, to be fixed (usually a mistyped serial) or added
 //   by hand. Personal devices are left alone.
@@ -24,27 +29,33 @@ import { formatCount } from "@/lib/utils";
 //   deleted. Only after every tenant was read, so a tenant that failed does
 //   not make its devices look gone.
 
-// A re-enrolled device leaves its old record behind until Intune cleans it
-// up; the record that checked in last is the device.
-function getDevicesBySerial(
-  devices: IntuneDevice[],
-): Map<string, IntuneDevice> {
-  const bySerial = new Map<string, IntuneDevice>();
-  for (const device of devices) {
-    if (!device.serialNumber) continue;
-    const serial = normalizeSerial(device.serialNumber);
-    const known = bySerial.get(serial);
-    const checkedIn = device.lastSyncDateTime?.getTime() ?? 0;
-    if (!known || checkedIn > (known.lastSyncDateTime?.getTime() ?? 0)) {
-      bySerial.set(serial, device);
-    }
-  }
-  return bySerial;
+function getLaterDate(a: Date | null, b: Date | null): Date | null {
+  if (!a || !b) return a ?? b;
+  return a > b ? a : b;
 }
 
-// Intune gets no serial from Linux devices ("Linux (ubuntu)"), so they can
-// never be matched; that is no problem worth reporting on every run. A
-// Windows or macOS device without one is.
+// A re-enrolled device leaves its old record behind until Intune cleans it
+// up: per key (serial or name), the record that checked in last is the
+// device. Devices without a key are left out.
+function getLatestBy(
+  devices: IntuneDevice[],
+  getKey: (device: IntuneDevice) => string | null,
+): Map<string, IntuneDevice> {
+  const latest = new Map<string, IntuneDevice>();
+  for (const device of devices) {
+    const key = getKey(device);
+    if (!key) continue;
+    const known = latest.get(key);
+    const checkedIn = device.lastSyncDateTime?.getTime() ?? 0;
+    if (!known || checkedIn > (known.lastSyncDateTime?.getTime() ?? 0)) {
+      latest.set(key, device);
+    }
+  }
+  return latest;
+}
+
+// Intune gets no serial from Linux devices ("Linux (ubuntu)"); they are
+// matched by name instead. A Windows or macOS device always has one.
 const osWithoutSerial = ["Linux"];
 
 function reportsSerial(device: IntuneDevice): boolean {
@@ -67,6 +78,14 @@ const assetSelect = {
 
 type SyncedAsset = Prisma.AssetGetPayload<{ select: typeof assetSelect }>;
 
+// An asset and the Intune record that is its device. lastCheckIn is the
+// latest of every record of it (a dual-boot device has two).
+type Match = {
+  asset: SyncedAsset;
+  device: IntuneDevice;
+  lastCheckIn: Date | null;
+};
+
 // What Intune owns of an asset.
 type IntuneFields = Pick<
   SyncedAsset,
@@ -79,7 +98,7 @@ type IntuneFields = Pick<
   | "missingInIntune"
 >;
 
-function toIntuneFields(device: IntuneDevice): IntuneFields {
+function toIntuneFields({ device, lastCheckIn }: Match): IntuneFields {
   return {
     name: device.deviceName,
     operatingSystem: device.operatingSystem,
@@ -88,7 +107,7 @@ function toIntuneFields(device: IntuneDevice): IntuneFields {
     intunePrimaryUser: device.userPrincipalName
       ? normalizeEmail(device.userPrincipalName)
       : null,
-    lastIntuneSync: device.lastSyncDateTime ?? null,
+    lastIntuneSync: lastCheckIn,
     missingInIntune: false,
   };
 }
@@ -126,17 +145,19 @@ function isSameTime(a: Date | null, b: Date | null): boolean {
   return (a?.getTime() ?? null) === (b?.getTime() ?? null);
 }
 
+// e.g. "PC-00049 (Windows, serial 5CD311KCYM, HP Pavilion)"
 function describeDevice(device: IntuneDevice): string {
-  const model = [device.manufacturer, device.model].filter(Boolean).join(" ");
-  return `${device.deviceName ?? "A device"} (serial ${device.serialNumber}${model ? `, ${model}` : ""})`;
+  const details = [
+    device.operatingSystem,
+    device.serialNumber && `serial ${device.serialNumber}`,
+    [device.manufacturer, device.model].filter(Boolean).join(" "),
+  ].filter(Boolean);
+  return `${device.deviceName ?? "A device"} (${details.join(", ")})`;
 }
 
-async function updateAsset(
-  asset: SyncedAsset,
-  device: IntuneDevice,
-  tally: SyncTally,
-): Promise<void> {
-  const fields = toIntuneFields(device);
+async function updateAsset(match: Match, tally: SyncTally): Promise<void> {
+  const { asset, device } = match;
+  const fields = toIntuneFields(match);
   const changes = getLoggedChanges(asset, fields);
   const note = getLinkNote(asset, device);
   const isNews =
@@ -245,15 +266,23 @@ async function syncDevicesFromIntune(tally: SyncTally): Promise<void> {
     }
   }
 
-  const withoutSerial = devices.filter(
-    (device) => !device.serialNumber && reportsSerial(device),
-  );
-  if (withoutSerial.length > 0) {
+  const matches = await matchDevices(devices, tally);
+  for (const match of matches.values()) await updateAsset(match, tally);
+
+  if (isEveryTenantRead) await flagMissing(new Set(matches.keys()), tally);
+  else {
     tally.errors.push(
-      `${formatCount(withoutSerial.length, "device")} in Intune without a serial cannot be matched and were skipped.`,
+      "Not every tenant could be read, so no asset was flagged as missing in Intune.",
     );
   }
+}
 
+// Every asset that has a device in Intune, by asset id. What cannot be
+// matched is reported, except personal devices.
+async function matchDevices(
+  devices: IntuneDevice[],
+  tally: SyncTally,
+): Promise<Map<number, Match>> {
   const assets = await prisma.asset.findMany({
     where: { OR: [{ serial: { not: null } }, { intuneId: { not: null } }] },
     select: assetSelect,
@@ -269,29 +298,59 @@ async function syncDevicesFromIntune(tally: SyncTally): Promise<void> {
     ),
   );
 
-  const linked = new Set<number>();
-  for (const [serial, device] of getDevicesBySerial(devices)) {
-    const asset = bySerial.get(serial);
+  const matches = new Map<number, Match>();
+  const report = (device: IntuneDevice, problem: string) => {
+    if (device.managedDeviceOwnerType !== "personal") {
+      tally.errors.push(`${describeDevice(device)} ${problem}`);
+    }
+  };
+
+  // By serial: Windows and macOS.
+  const withSerial = devices.filter((device) => reportsSerial(device));
+  const bySerialKey = getLatestBy(withSerial, (device) =>
+    device.serialNumber ? normalizeSerial(device.serialNumber) : null,
+  );
+  for (const [serial, device] of bySerialKey) {
     const tagMismatch = findTagMismatch(device, byTag);
     if (tagMismatch) tally.errors.push(tagMismatch);
-    if (!asset) {
-      if (!tagMismatch && device.managedDeviceOwnerType !== "personal") {
-        tally.errors.push(
-          `${describeDevice(device)} is in Intune but not here: fix its serial or add it.`,
-        );
-      }
-      continue;
+    const asset = bySerial.get(serial);
+    if (asset) {
+      matches.set(asset.id, {
+        asset,
+        device,
+        lastCheckIn: device.lastSyncDateTime ?? null,
+      });
+    } else if (!tagMismatch) {
+      report(device, "is in Intune but not here: fix its serial or add it.");
     }
-    linked.add(asset.id);
-    await updateAsset(asset, device, tally);
+  }
+  for (const device of withSerial.filter((device) => !device.serialNumber)) {
+    report(device, "has no serial in Intune, so it cannot be matched.");
   }
 
-  if (isEveryTenantRead) await flagMissing(linked, tally);
-  else {
-    tally.errors.push(
-      "Not every tenant could be read, so no asset was flagged as missing in Intune.",
-    );
+  // By name: Linux, alone or as the second system of a dual-boot device.
+  const byName = getLatestBy(
+    devices.filter((device) => !reportsSerial(device)),
+    (device) => device.deviceName?.toUpperCase() ?? null,
+  );
+  for (const [name, device] of byName) {
+    const asset = byTag.get(name);
+    if (!asset) {
+      report(
+        device,
+        "sends no serial and its name is no asset tag here: name the device after its tag.",
+      );
+      continue;
+    }
+    const lastCheckIn = device.lastSyncDateTime ?? null;
+    const known = matches.get(asset.id);
+    if (known) {
+      known.lastCheckIn = getLaterDate(known.lastCheckIn, lastCheckIn);
+    } else {
+      matches.set(asset.id, { asset, device, lastCheckIn });
+    }
   }
+  return matches;
 }
 
 // Started by the schedule (/api/cron/intune-sync) or by the Azure sync page.

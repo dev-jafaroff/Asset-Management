@@ -195,7 +195,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 - [x] `DeviceManagementManagedDevices.Read.All` (Application) permission on the App Registration, admin consent (EIG and Waverity, each with its own Intune: `INTUNE_TENANT_IDS`)
 - [x] Graph client (client credentials, pagination); `npm run intune:inspect` reports what Intune holds and how it matches
-- [x] Sync logic (`lib/intune/intune-sync.ts`): match by serial (the latest check-in wins for a re-enrolled device), update, flag `missingInIntune` only after every tenant was read. Nothing is created: devices we do not have, and devices named after a tag whose serial differs, are reported. Personal devices are ignored
+- [x] Sync logic (`lib/intune/intune-sync.ts`): match by serial (the latest check-in wins for a re-enrolled device); Linux sends no serial, so it is matched by device name = asset tag, and the Linux record of a dual-boot device only counts as a check-in, update, flag `missingInIntune` only after every tenant was read. Nothing is created: devices we do not have, and devices named after a tag whose serial differs, are reported. Personal devices are ignored
 - [x] Field ownership: name, OS, OS version and check-in from Intune (locked in the form for any asset linked to Intune, whatever its source); business fields manual
 - [ ] Show the Intune user as an assignment suggestion
 - [x] "Sync from Intune" on the Azure sync page and `POST /api/cron/intune-sync`
