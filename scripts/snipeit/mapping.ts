@@ -37,11 +37,13 @@ export function getAssetType(
 }
 
 // Snipe-IT status label → ours (prisma/seed.ts). Who holds an asset is
-// kept apart from its status, as Snipe-IT's "Deployed" is.
+// kept apart from its status, as Snipe-IT's "Deployed" is. In Snipe-IT,
+// Pending held the devices sent out for repair, and Broken the broken ones
+// kept in the office.
 const statusByName: Record<string, string> = {
   "Ready to Deploy": "In stock",
-  Broken: "In repair",
-  Pending: "Pending",
+  Broken: "Broken",
+  Pending: "In repair",
   Archived: "Archived",
 };
 

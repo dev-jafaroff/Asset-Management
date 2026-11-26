@@ -110,15 +110,15 @@ Status labels live in the database and can be edited in Lookup tables; list tabs
 | In stock   | DEPLOYABLE   | New, unopened; ready to hand out                  |
 | In storage | DEPLOYABLE   | Used and returned; ready to hand out              |
 | Pending    | PENDING      | With IT but not ready to hand out yet (see below) |
-| In repair  | UNDEPLOYABLE | Sent for repair                                   |
+| In repair  | UNDEPLOYABLE | Sent for repair (at the service)                  |
+| Broken     | UNDEPLOYABLE | Broken, kept in the office; not sent for repair   |
 | Archived   | ARCHIVED     | Retired; kept for history, never deleted          |
 
-Pending was not used in Snipe-IT; it is used from now on for:
+In Snipe-IT, Pending held the devices at the service; they are migrated as In repair, and Broken as Broken. From now on Pending is used for:
 
 - Setup in progress: Autopilot / Intune enrollment, labeling
 - Leaver devices: not returned yet, or returned and waiting for a wipe
 - Diagnosis: came back with a problem, repair or storage not decided yet
-- (Planned, Phase 4) Devices found in Intune that are not in the system yet, until an admin reviews them
 
 ## Phases
 
@@ -151,7 +151,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 ### Phase 1 — Database and sign-in
 
 - [x] Full Prisma schema and migration
-- [x] Seed: statuses (In stock = new, unopened; In storage = used and returned — both DEPLOYABLE; Pending; In repair; Archived), categories, companies
+- [x] Seed: statuses (In stock = new, unopened; In storage = used and returned — both DEPLOYABLE; Pending; In repair; Broken; Archived), categories, companies
 - [x] App Registration in Entra ID: multi-tenant with allowed tenants, redirect URI, client secret, app roles, assignment required
 - [x] Better Auth + Entra ID provider, login page, sign out
 - [x] Roles from Entra app roles (ADMIN / EDITOR / VIEWER)
