@@ -3,6 +3,7 @@
 import { RefreshCw, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { runSyncNow } from "@/app/(app)/admin/sync/actions";
+import { SyncingCloud } from "@/components/assets/asset-icons";
 import { Button } from "@/components/ui/button";
 import type { SyncMessage } from "@/lib/sync/sync-run";
 import { cn } from "@/lib/utils";
@@ -79,23 +80,23 @@ type SyncButtonProps = {
 };
 
 // Runs a sync now instead of waiting for the schedule, then says what
-// changed.
+// changed, in a box that opens under the button over what follows.
 export function SyncButton({ kind, label }: SyncButtonProps) {
   const { isPending, message, run, dismiss } = useSyncAction(() =>
     runSyncNow(kind),
   );
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="relative">
       <Button variant="outline" onClick={run} disabled={isPending}>
-        <RefreshCw aria-hidden className={cn(isPending && "animate-spin")} />
+        {isPending ? <SyncingCloud /> : <RefreshCw aria-hidden />}
         {isPending ? "Syncing…" : label}
       </Button>
       {message && (
         <SyncMessageBox
           message={message}
           onDismiss={dismiss}
-          className="w-full"
+          className="absolute top-full right-0 z-20 mt-2 w-80 bg-popover shadow-md"
         />
       )}
     </div>

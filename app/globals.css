@@ -154,13 +154,13 @@
 }
 
 /* A sync in progress (components/assets/asset-icons.tsx, SyncingCloud):
-   colored segments travel clockwise along the cloud's outline. Each segment
-   starts at its own --dash-start; the outline is 100 long (pathLength). */
+   colored segments travel clockwise along the cloud's outline, which is 100
+   long (pathLength). Each segment runs it with its own delay. */
 @keyframes outline-chase {
   from {
-    stroke-dashoffset: var(--dash-start);
+    stroke-dashoffset: 0;
   }
   to {
-    stroke-dashoffset: calc(var(--dash-start) - 100);
+    stroke-dashoffset: -100;
   }
 }

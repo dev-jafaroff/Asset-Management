@@ -65,7 +65,6 @@ import {
   getCategoryIconLabel,
   type CategoryIconKey,
 } from "@/lib/schemas/lookup";
-import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 // Icon registry: the one place that decides which icon an asset type uses
@@ -163,10 +162,13 @@ const SourceCloud = createLucideIcon("SourceCloud", [
 // Microsoft's four colors, travelling around the cloud while a sync runs.
 const syncColors = ["#f25022", "#7fba00", "#00a4ef", "#ffb900"];
 const SEGMENT = 100 / syncColors.length;
+// One trip around the cloud.
+const CHASE_SECONDS = 1.6;
 
 // The Intune cloud while it syncs: it stays still and its outline cycles
-// through the colors, clockwise. Without motion (reduced motion settings)
-// it shows the four colors standing.
+// through the colors, clockwise. Every segment runs the same animation, a
+// quarter of a trip behind the one before. Without motion (reduced motion
+// settings) the four colors stand.
 export function SyncingCloud({ className }: { className?: string }) {
   return (
     <svg
@@ -186,8 +188,10 @@ export function SyncingCloud({ className }: { className?: string }) {
           stroke={color}
           strokeDasharray={`${SEGMENT} ${100 - SEGMENT}`}
           strokeDashoffset={-index * SEGMENT}
-          style={{ "--dash-start": -index * SEGMENT } as CSSProperties}
-          className="animate-[outline-chase_1.6s_linear_infinite] motion-reduce:animate-none"
+          style={{
+            animation: `outline-chase ${CHASE_SECONDS}s linear ${(-index * CHASE_SECONDS) / syncColors.length}s infinite`,
+          }}
+          className="motion-reduce:animate-none!"
         />
       ))}
     </svg>

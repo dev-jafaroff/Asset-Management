@@ -7,6 +7,7 @@ import { SyncButton } from "@/components/sync/sync-button";
 import { SyncRunSummary, SyncRunTable } from "@/components/sync/sync-run-table";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -80,11 +81,16 @@ function SyncJobCard({
 }) {
   return (
     <Card>
+      {/* The button sits in the header, so it is at the same height on every
+          card, however long the description or the last run's problems. */}
       <CardHeader>
         <CardTitle>{job.title}</CardTitle>
         <CardDescription>{job.description}</CardDescription>
+        <CardAction>
+          <SyncButton kind={job.kind} label={job.buttonLabel} />
+        </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 text-sm">
+      <CardContent className="text-sm">
         {lastRun ? (
           <div className="space-y-1">
             <p className="text-muted-foreground">
@@ -95,7 +101,6 @@ function SyncJobCard({
         ) : (
           <p className="text-muted-foreground">Never run.</p>
         )}
-        <SyncButton kind={job.kind} label={job.buttonLabel} />
       </CardContent>
     </Card>
   );
