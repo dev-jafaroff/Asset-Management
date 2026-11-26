@@ -14,6 +14,7 @@ import {
   type AssetFormErrors,
 } from "@/lib/assets/asset-form";
 import { getAssetPath } from "@/lib/assets/asset-types";
+import { isIntuneManaged } from "@/lib/assets/format";
 import {
   checkInAsset,
   checkOutAsset,
@@ -25,6 +26,7 @@ import {
 } from "@/lib/assets/queries";
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
+import { syncIntuneAsset } from "@/lib/intune/intune-sync";
 import { prisma } from "@/lib/prisma";
 import {
   assetIdSchema,
@@ -37,6 +39,7 @@ import {
   type CheckinValues,
   type CheckoutValues,
 } from "@/lib/schemas/asset";
+import type { SyncMessage } from "@/lib/sync/sync-run";
 
 export type NotesFormState =
   | { status: "idle" }
@@ -116,12 +119,16 @@ export async function updateAsset(
   if (!id.success) return { message: "Unknown asset." };
   const asset = await prisma.asset.findUnique({
     where: { id: id.data },
-    select: { type: true, source: true },
+    select: { type: true, intuneId: true },
   });
   if (!asset) return { message: "This asset no longer exists." };
 
   // Which fields can change depends on the asset, e.g. Intune owns a PC's name.
-  const editable = getEditableAssetFields(asset.type, "edit", asset.source);
+  const editable = getEditableAssetFields(
+    asset.type,
+    "edit",
+    isIntuneManaged(asset),
+  );
   const input = getAssetFormSchema(asset.type, editable).safeParse(values);
   if (!input.success) return { fields: getFirstFieldErrors(input.error) };
 
@@ -205,4 +212,24 @@ export async function submitCheckin(
   if (refused) return { message: refused };
   refresh();
   return null;
+}
+
+// The Intune badge on an asset's page: pulls that one device from Intune now.
+export async function syncAssetFromIntune(
+  assetId: number,
+): Promise<SyncMessage> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "asset:edit")) {
+    return {
+      ok: false,
+      text: "You do not have permission to sync assets.",
+      errors: [],
+    };
+  }
+  const id = assetIdSchema.safeParse(assetId);
+  if (!id.success) return { ok: false, text: "Unknown asset.", errors: [] };
+
+  const message = await syncIntuneAsset(id.data);
+  refresh();
+  return message;
 }

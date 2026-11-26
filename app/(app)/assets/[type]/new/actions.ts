@@ -40,7 +40,7 @@ export async function createAsset(
   const assetType = assetTypeSchema.safeParse(type);
   if (!assetType.success) return { message: "Unknown asset type." };
 
-  const editable = getEditableAssetFields(assetType.data, "create", "MANUAL");
+  const editable = getEditableAssetFields(assetType.data, "create", false);
   const input = getAssetFormSchema(assetType.data, editable).safeParse(values);
   if (!input.success) return { fields: getFirstFieldErrors(input.error) };
 

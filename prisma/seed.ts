@@ -7,6 +7,7 @@ const statuses: { name: string; type: StatusType; color: string }[] = [
   { name: "In storage", type: "DEPLOYABLE", color: "#038387" },
   { name: "Pending", type: "PENDING", color: "#CA5010" },
   { name: "In repair", type: "UNDEPLOYABLE", color: "#D13438" },
+  { name: "Broken", type: "UNDEPLOYABLE", color: "#8764B8" },
   { name: "Archived", type: "ARCHIVED", color: "#616161" },
 ];
 

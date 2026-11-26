@@ -4,7 +4,11 @@ import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
 import { getAssetPath, getAssetTypeBySlug } from "@/lib/assets/asset-types";
 import { assetListSelect } from "@/lib/assets/queries";
-import { formatModelName } from "@/lib/assets/format";
+import {
+  formatModelName,
+  isIntuneManaged,
+  joinOsName,
+} from "@/lib/assets/format";
 import { prisma } from "@/lib/prisma";
 import { getPositiveIntParam } from "@/lib/search-params";
 import { daysBetween, formatAge, formatDate } from "@/lib/utils";
@@ -97,7 +101,9 @@ export function getIntuneDeviceUrl(asset: AssetDetail): string | null {
 
 // ─── Intune sync status ──────────────────────────────────────────────────────
 
-// A device that has not synced for longer than this needs a look.
+// A device that has not checked in with Intune for longer than this needs a
+// look (e.g. switched off, at the service). It is the device's own check-in,
+// not our sync: syncing again does not change it.
 const INTUNE_STALE_AFTER_DAYS = 7;
 
 export type IntuneSyncState = "synced" | "stale" | "missing" | "never";
@@ -113,16 +119,19 @@ export function getIntuneSyncStatus(
   now: Date = new Date(),
 ): IntuneSyncStatus {
   if (asset.missingInIntune) {
-    return { state: "missing", label: "Missing in the last sync" };
+    return { state: "missing", label: "No longer in Intune" };
   }
   if (!asset.lastIntuneSync) {
-    return { state: "never", label: "Never synced" };
+    return { state: "never", label: "Never checked in with Intune" };
   }
   const days = daysBetween(asset.lastIntuneSync, now);
   if (days > INTUNE_STALE_AFTER_DAYS) {
-    return { state: "stale", label: `Not synced for ${days} days` };
+    return {
+      state: "stale",
+      label: `No check-in with Intune for ${days} days`,
+    };
   }
-  return { state: "synced", label: "Up to date" };
+  return { state: "synced", label: "Checked in with Intune recently" };
 }
 
 export type AssetSourceBadge = {
@@ -132,15 +141,21 @@ export type AssetSourceBadge = {
   syncStatus: IntuneSyncStatus | null;
 };
 
-// Badge next to the title: where the record came from.
+// Badge next to the title: where the record's data comes from now. A device
+// linked to Intune shows Intune and how fresh its data is, even when it was
+// migrated from Snipe-IT (its history still says so).
 export function getAssetSourceBadge(
   asset: AssetDetail,
 ): AssetSourceBadge | null {
+  if (isIntuneManaged(asset)) {
+    return {
+      source: "INTUNE",
+      label: "Intune",
+      syncStatus: getIntuneSyncStatus(asset),
+    };
+  }
   const label = assetSourceLabels[asset.source];
-  if (!label) return null;
-  const syncStatus =
-    asset.source === "INTUNE" ? getIntuneSyncStatus(asset) : null;
-  return { source: asset.source, label, syncStatus };
+  return label ? { source: asset.source, label, syncStatus: null } : null;
 }
 
 // ─── Detail sections ─────────────────────────────────────────────────────────
@@ -252,9 +267,9 @@ const typeSections: Record<
   OTHER: () => null,
 };
 
-// Shown for any asset synced from Intune, whatever its type.
+// Shown for any asset linked to Intune, whatever its type or source.
 function buildIntuneSection(asset: AssetDetail): DetailSection | null {
-  if (asset.source !== "INTUNE") return null;
+  if (!isIntuneManaged(asset)) return null;
   const intuneUrl = getIntuneDeviceUrl(asset);
   const syncStatus = getIntuneSyncStatus(asset);
   return {
@@ -267,6 +282,17 @@ function buildIntuneSection(asset: AssetDetail): DetailSection | null {
       { label: "Device name", value: asset.name },
       { label: "OS", value: asset.operatingSystem },
       { label: "OS version", value: asset.osVersion, mono: true },
+      ...(asset.secondaryOperatingSystem
+        ? [
+            {
+              label: "Second OS (dual boot)",
+              value: joinOsName(
+                asset.secondaryOperatingSystem,
+                asset.secondaryOsVersion,
+              ),
+            },
+          ]
+        : []),
       { label: "Last sync", value: asset.lastIntuneSync },
       { label: "Sync status", value: syncStatus.label },
     ],

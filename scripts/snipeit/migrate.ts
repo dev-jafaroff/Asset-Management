@@ -10,6 +10,7 @@
 // are found by email. The database must have no assets yet.
 import "dotenv/config";
 import { getAssetTypeConfig } from "@/lib/assets/asset-types";
+import { normalizeSerial } from "@/lib/assets/format";
 import { normalizeEmail } from "@/lib/auth/entra";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetType } from "@/lib/generated/prisma/enums";
@@ -140,7 +141,7 @@ function planAssets(
     // Serials are unique here; a repeated one stays on the first asset.
     let serial = text(asset.serial);
     if (serial) {
-      const key = serial.replace(/\s+/g, "").toUpperCase();
+      const key = normalizeSerial(serial);
       const owner = serialOwners.get(key);
       if (owner) {
         warnings.push(

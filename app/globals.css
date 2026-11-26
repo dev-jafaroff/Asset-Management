@@ -152,3 +152,15 @@
     print-color-adjust: exact;
   }
 }
+
+/* A sync in progress (components/assets/asset-icons.tsx, SyncingCloud):
+   colored segments travel clockwise along the cloud's outline, which is 100
+   long (pathLength). Each segment runs it with its own delay. */
+@keyframes outline-chase {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}

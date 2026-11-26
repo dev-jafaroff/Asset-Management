@@ -17,6 +17,7 @@ import {
   submitCheckout,
 } from "@/app/(app)/assets/[type]/[id]/actions";
 import { AssetTypeIcon, SourceIcon } from "@/components/assets/asset-icons";
+import { IntuneSyncBadge } from "@/components/assets/intune-sync-badge";
 import { AssetNotesCard } from "@/components/assets/asset-notes-card";
 import { CheckinDialog } from "@/components/assets/checkin-dialog";
 import { CheckoutDialog } from "@/components/assets/checkout-dialog";
@@ -339,20 +340,28 @@ function ExternalAnchor(props: ComponentProps<"a">) {
   return <a target="_blank" rel="noopener noreferrer" {...props} />;
 }
 
-// Where the record came from, e.g. "Intune" with a cloud icon. For Intune the
+// Where the data comes from, e.g. "Intune" with a cloud icon. For Intune the
 // cloud is colored by how fresh the data is (details on hover and in the
-// Intune card, which also links to the device in Intune).
+// Intune card, which also links to the device in Intune), and editors can
+// click it to sync the device now.
 function SourceBadge({ asset }: { asset: AssetDetail }) {
   const badge = getAssetSourceBadge(asset);
   if (!badge) return null;
   const status = badge.syncStatus?.label;
 
-  return (
+  const plainBadge = (
     <Badge variant="outline" title={status && `${badge.label}: ${status}`}>
       <SourceIcon source={badge.source} syncState={badge.syncStatus?.state} />
       {badge.label}
       {status && <span className="sr-only">: {status}</span>}
     </Badge>
+  );
+  if (!badge.syncStatus) return plainBadge;
+
+  return (
+    <RequirePermission permission="asset:edit" fallback={plainBadge}>
+      <IntuneSyncBadge assetId={asset.id} syncStatus={badge.syncStatus} />
+    </RequirePermission>
   );
 }
 

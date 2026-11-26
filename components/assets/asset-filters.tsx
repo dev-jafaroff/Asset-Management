@@ -45,7 +45,7 @@ export async function AssetFilters({
             label={filter.label}
             allLabel={filter.allLabel}
             options={filter.options}
-            value={values[filter.param]?.toString()}
+            value={values[filter.param]}
           />
         ))}
 

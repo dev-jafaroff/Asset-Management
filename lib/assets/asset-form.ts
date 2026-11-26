@@ -3,7 +3,7 @@ import {
   type AssignTarget,
 } from "@/lib/assets/asset-types";
 import type { AssetDetail } from "@/lib/assets/asset-detail";
-import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
+import type { AssetType } from "@/lib/generated/prisma/enums";
 import type { AssetFormData, AssetFormValues } from "@/lib/schemas/asset";
 
 // Every field the asset form can show. Which ones a type shows is decided
@@ -168,7 +168,8 @@ export function getAssetFormSections(
   ];
 }
 
-// Fields owned by Intune for synced devices (see docs/PLAN.md, field ownership).
+// Fields owned by Intune for devices linked to it (see docs/PLAN.md, field
+// ownership); the serial is what links them.
 const intuneOwnedFields: AssetFormField[] = [
   "name",
   "serial",
@@ -178,11 +179,11 @@ const intuneOwnedFields: AssetFormField[] = [
 // Fields shown in the form but not editable, with the reason shown under each.
 export function getLockedAssetFields(
   mode: AssetFormMode,
-  source: AssetSource,
+  isIntuneManaged: boolean,
 ): Partial<Record<AssetFormField, string>> {
   const locked: Partial<Record<AssetFormField, string>> = {};
   if (mode === "edit") locked.assetTag = "Printed on the label, so it stays.";
-  if (source === "INTUNE") {
+  if (isIntuneManaged) {
     for (const field of intuneOwnedFields)
       locked[field] = "Synced from Intune.";
   }
@@ -193,9 +194,9 @@ export function getLockedAssetFields(
 export function getEditableAssetFields(
   type: AssetType,
   mode: AssetFormMode,
-  source: AssetSource,
+  isIntuneManaged: boolean,
 ): AssetFormField[] {
-  const locked = getLockedAssetFields(mode, source);
+  const locked = getLockedAssetFields(mode, isIntuneManaged);
   return getAssetFormSections(type, mode)
     .flatMap((section) => section.fields)
     .filter((field) => !locked[field]);

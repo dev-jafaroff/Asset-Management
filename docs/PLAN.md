@@ -110,15 +110,15 @@ Status labels live in the database and can be edited in Lookup tables; list tabs
 | In stock   | DEPLOYABLE   | New, unopened; ready to hand out                  |
 | In storage | DEPLOYABLE   | Used and returned; ready to hand out              |
 | Pending    | PENDING      | With IT but not ready to hand out yet (see below) |
-| In repair  | UNDEPLOYABLE | Sent for repair                                   |
+| In repair  | UNDEPLOYABLE | Sent for repair (at the service)                  |
+| Broken     | UNDEPLOYABLE | Broken, kept in the office; not sent for repair   |
 | Archived   | ARCHIVED     | Retired; kept for history, never deleted          |
 
-Pending was not used in Snipe-IT; it is used from now on for:
+In Snipe-IT, Pending held the devices at the service; they are migrated as In repair, and Broken as Broken. From now on Pending is used for:
 
 - Setup in progress: Autopilot / Intune enrollment, labeling
 - Leaver devices: not returned yet, or returned and waiting for a wipe
 - Diagnosis: came back with a problem, repair or storage not decided yet
-- (Planned, Phase 4) Devices found in Intune that are not in the system yet, until an admin reviews them
 
 ## Phases
 
@@ -151,7 +151,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 ### Phase 1 — Database and sign-in
 
 - [x] Full Prisma schema and migration
-- [x] Seed: statuses (In stock = new, unopened; In storage = used and returned — both DEPLOYABLE; Pending; In repair; Archived), categories, companies
+- [x] Seed: statuses (In stock = new, unopened; In storage = used and returned — both DEPLOYABLE; Pending; In repair; Broken; Archived), categories, companies
 - [x] App Registration in Entra ID: multi-tenant with allowed tenants, redirect URI, client secret, app roles, assignment required
 - [x] Better Auth + Entra ID provider, login page, sign out
 - [x] Roles from Entra app roles (ADMIN / EDITOR / VIEWER)
@@ -193,17 +193,18 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 
 ### Phase 4 — Intune synchronization
 
-- [ ] `DeviceManagementManagedDevices.Read.All` (Application) permission on the App Registration, admin consent
-- [ ] Graph client (client credentials, pagination)
-- [ ] Sync logic: match by serial, create, update, flag `missingInIntune`
-- [ ] Field ownership: technical fields from Intune, business fields manual
+- [x] `DeviceManagementManagedDevices.Read.All` (Application) permission on the App Registration, admin consent (EIG and Waverity, each with its own Intune: `INTUNE_TENANT_IDS`)
+- [x] Graph client (client credentials, pagination); `npm run intune:inspect` reports what Intune holds and how it matches
+- [x] Sync logic (`lib/intune/intune-sync.ts`): match by serial (the latest check-in wins for a re-enrolled device); Linux sends no serial, so it is matched by device name = asset tag, and the Linux record of a dual-boot device gives its second OS and counts as a check-in; update; flag `missingInIntune` only after every tenant was read. A new device named after a free PC tag (IT names it after its label, e.g. `PC-00123`) is added with everything Intune knows (`lib/intune/new-devices.ts`): serial, model (by name, added when new), checked out to its Intune primary user, company guessed from the holder's other assets or email domain; Pending only without a holder; any other device we do not have, and a device named after a tag whose serial differs, is reported. Personal devices are ignored
+- [x] Field ownership: name, OS, OS version and check-in from Intune (locked in the form for any asset linked to Intune, whatever its source); business fields manual
 - [ ] Show the Intune user as an assignment suggestion
-- [ ] Hourly cron job and a "Sync now" button
-- [ ] Sync one device from its detail page: clicking the Intune badge pulls that device from Graph; the cloud icon animates while it runs
+- [x] "Sync from Intune" on the Azure sync page and `POST /api/cron/intune-sync`
+- [ ] Schedule the Intune sync (hourly) on the chosen host
+- [x] Sync one device from its detail page: clicking the Intune badge pulls that device from Graph; the cloud icon animates while it runs
 - [ ] Keep the last sync error per asset (e.g. `lastIntuneSyncError`) and show it in the Intune card
 - [ ] "Request device check-in" in the Intune card (Graph `syncDevice`, needs `DeviceManagementManagedDevices.PrivilegedOperations.All`)
-- [ ] Sync log page (`SyncRun`)
-- [x] User sync from Entra ID (`User.Read.All` + `GroupMember.Read.All` Application permissions): members of the employees group; name, email, department, job title; "Sync from Entra" on the users page and `POST /api/cron/user-sync`
+- [x] Sync log page (`SyncRun`): the Azure sync page (`/admin/sync`) runs each sync and lists recent runs; each sync is one entry in `lib/sync/sync-jobs.ts`
+- [x] User sync from Entra ID (`User.Read.All` + `GroupMember.Read.All` Application permissions): members of the employees group; name, email, department, job title; "Sync from Entra" on the Azure sync page and `POST /api/cron/user-sync`
 - [ ] Schedule the user sync (daily) on the chosen host
 
 **Acceptance criterion:** running sync twice in a row creates no duplicates and manual changes are not lost.

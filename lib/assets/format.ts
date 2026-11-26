@@ -75,3 +75,41 @@ export function getCheckoutBlocker(asset: AssetWithStatus): string | null {
   }
   return null;
 }
+
+// Serials as compared between Intune, Snipe-IT and the forms: "pf3a 1bcd"
+// and "PF3A1BCD" are the same device.
+export function normalizeSerial(serial: string): string {
+  return serial.replace(/\s+/g, "").toUpperCase();
+}
+
+// Linked to an Intune device by the sync (found by its serial), whether it
+// was added by hand, migrated from Snipe-IT or created from Intune.
+export function isIntuneManaged(asset: { intuneId: string | null }): boolean {
+  return asset.intuneId !== null;
+}
+
+// joinOsName("Windows", "10.0.26100") → "Windows 10.0.26100"
+export function joinOsName(
+  system: string | null,
+  version: string | null,
+): string | null {
+  return [system, version].filter(Boolean).join(" ") || null;
+}
+
+// Every system of a device, a dual-boot PC's second one after its first:
+// "Windows 10.0.26100 · Linux (ubuntu) 22.04".
+export function formatOperatingSystem(
+  asset: Pick<
+    AssetListItem,
+    | "operatingSystem"
+    | "osVersion"
+    | "secondaryOperatingSystem"
+    | "secondaryOsVersion"
+  >,
+): string | null {
+  const systems = [
+    joinOsName(asset.operatingSystem, asset.osVersion),
+    joinOsName(asset.secondaryOperatingSystem, asset.secondaryOsVersion),
+  ].filter(Boolean);
+  return systems.length > 0 ? systems.join(" · ") : null;
+}

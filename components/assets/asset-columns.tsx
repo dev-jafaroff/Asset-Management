@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/assets/status-badge";
 import { getAssetTypeConfig } from "@/lib/assets/asset-types";
 import {
   formatModelName,
+  formatOperatingSystem,
   getAssetDisplayName,
   getAssetDisplayStatus,
   getAssetHolder,
@@ -128,8 +129,7 @@ const notes = column.accessor("notes", {
 // ─── Type-specific columns ───────────────────────────────────────────────────
 
 const operatingSystem = column.accessor(
-  (asset) =>
-    [asset.operatingSystem, asset.osVersion].filter(Boolean).join(" ") || null,
+  (asset) => formatOperatingSystem(asset),
   {
     id: "operatingSystem",
     header: "OS",

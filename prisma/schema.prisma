@@ -151,8 +151,12 @@ model Asset {
   phoneNumber String?
 
   // PCs (from Intune) and VMs (manual)
-  operatingSystem String?
-  osVersion       String?
+  operatingSystem          String?
+  osVersion                String?
+  // The other system of a dual-boot PC, from its second Intune record
+  // (e.g. Linux next to Windows).
+  secondaryOperatingSystem String?
+  secondaryOsVersion       String?
 
   // VMs
   vmHost String?
@@ -162,11 +166,16 @@ model Asset {
   purchaseCost Decimal?  @db.Decimal(10, 2)
   purchaseDate DateTime? @db.Date
 
-  source          AssetSource @default(MANUAL)
-  intuneId        String?     @unique
-  lastIntuneSync  DateTime?
-  missingInIntune Boolean     @default(false)
-  legacySnipeId   Int?        @unique
+  source            AssetSource @default(MANUAL)
+  // Set by the Intune sync once the serial is found in Intune; the asset is
+  // then managed by Intune, whatever its source.
+  intuneId          String?     @unique
+  lastIntuneSync    DateTime?
+  missingInIntune   Boolean     @default(false)
+  // The device's primary user in Intune (their sign-in name), shown as a
+  // suggestion: the holder is never changed by the sync.
+  intunePrimaryUser String?
+  legacySnipeId     Int?        @unique
 
   statusId     Int
   status       StatusLabel @relation(fields: [statusId], references: [id])
