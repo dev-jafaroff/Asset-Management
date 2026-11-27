@@ -155,12 +155,18 @@
 
 /* A sync in progress (components/assets/asset-icons.tsx, SyncingCloud):
    colored segments travel clockwise along the cloud's outline, which is 100
-   long (pathLength). Each segment runs it with its own delay. */
-@keyframes outline-chase {
-  from {
-    stroke-dashoffset: 0;
-  }
-  to {
-    stroke-dashoffset: -100;
+   long (pathLength). Each segment sets its own duration and delay. In the
+   theme, so Tailwind keeps the keyframes for the animate-outline-chase class
+   (keyframes only used from inline styles are dropped). */
+@theme {
+  --animate-outline-chase: outline-chase 1s linear infinite;
+
+  @keyframes outline-chase {
+    from {
+      stroke-dashoffset: 0;
+    }
+    to {
+      stroke-dashoffset: -100;
+    }
   }
 }

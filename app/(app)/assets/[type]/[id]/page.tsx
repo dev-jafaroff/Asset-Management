@@ -1,5 +1,6 @@
 import {
   Building2,
+  CloudOff,
   ExternalLink,
   LockKeyhole,
   MapPin,
@@ -17,7 +18,7 @@ import {
   submitCheckout,
 } from "@/app/(app)/assets/[type]/[id]/actions";
 import { AssetTypeIcon, SourceIcon } from "@/components/assets/asset-icons";
-import { IntuneSyncBadge } from "@/components/assets/intune-sync-badge";
+import { IntuneSyncTitle } from "@/components/assets/intune-sync-title";
 import { AssetNotesCard } from "@/components/assets/asset-notes-card";
 import { CheckinDialog } from "@/components/assets/checkin-dialog";
 import { CheckoutDialog } from "@/components/assets/checkout-dialog";
@@ -41,7 +42,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   buildDetailSections,
-  getAssetSourceBadge,
+  isNotInIntune,
   getCheckedOutAt,
   getIntuneHolderSuggestion,
   getRouteAsset,
@@ -175,7 +176,7 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
               />
             )}
             <StatusBadge status={getAssetDisplayStatus(asset)} />
-            <SourceBadge asset={asset} />
+            <NotInIntuneBadge asset={asset} />
           </>
         }
         actions={
@@ -198,7 +199,11 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
             <AssignmentCard asset={asset} suggestion={suggestion} />
             <div className="grid items-start gap-4 lg:grid-cols-2">
               {buildDetailSections(asset).map((section) => (
-                <DetailCard key={section.title} section={section} />
+                <DetailCard
+                  key={section.title}
+                  assetId={asset.id}
+                  section={section}
+                />
               ))}
             </div>
             <AssetNotesCard
@@ -385,27 +390,48 @@ function ExternalAnchor(props: ComponentProps<"a">) {
   return <a target="_blank" rel="noopener noreferrer" {...props} />;
 }
 
-// Where the data comes from, e.g. "Intune" with a cloud icon. For Intune the
-// cloud is colored by how fresh the data is (details on hover and in the
-// Intune card, which also links to the device in Intune), and editors can
-// click it to sync the device now.
-function SourceBadge({ asset }: { asset: AssetDetail }) {
-  const badge = getAssetSourceBadge(asset);
-  if (!badge) return null;
-  const status = badge.syncStatus?.label;
-
-  const plainBadge = (
-    <Badge variant="outline" title={status && `${badge.label}: ${status}`}>
-      <SourceIcon source={badge.source} syncState={badge.syncStatus?.state} />
-      {badge.label}
-      {status && <span className="sr-only">: {status}</span>}
+// A PC the sync has not linked to an Intune device yet. Once linked, the
+// Intune card shows (and syncs) it instead.
+function NotInIntuneBadge({ asset }: { asset: AssetDetail }) {
+  if (!isNotInIntune(asset)) return null;
+  return (
+    <Badge
+      variant="outline"
+      title="Not linked to an Intune device. The sync links it once Intune has a device with its serial, or named after its asset tag."
+      className="text-muted-foreground"
+    >
+      <CloudOff aria-hidden />
+      Not in Intune
     </Badge>
   );
-  if (!badge.syncStatus) return plainBadge;
+}
+
+// A card's icon and title. A synced section (Intune) lets editors click it
+// to sync the record now.
+function DetailCardHeading({
+  assetId,
+  section,
+}: {
+  assetId: number;
+  section: DetailSection;
+}) {
+  const heading = (
+    <>
+      {section.source && (
+        <SourceIcon
+          source={section.source}
+          syncState={section.syncStatus?.state}
+          className="size-4 text-primary"
+        />
+      )}
+      {section.title}
+    </>
+  );
+  if (!section.syncStatus) return heading;
 
   return (
-    <RequirePermission permission="asset:edit" fallback={plainBadge}>
-      <IntuneSyncBadge assetId={asset.id} syncStatus={badge.syncStatus} />
+    <RequirePermission permission="asset:edit" fallback={heading}>
+      <IntuneSyncTitle assetId={assetId} syncStatus={section.syncStatus} />
     </RequirePermission>
   );
 }
@@ -439,19 +465,18 @@ function renderFieldValue(field: DetailField): ReactNode {
   );
 }
 
-function DetailCard({ section }: { section: DetailSection }) {
+function DetailCard({
+  assetId,
+  section,
+}: {
+  assetId: number;
+  section: DetailSection;
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {section.source && (
-            <SourceIcon
-              source={section.source}
-              syncState={section.syncState}
-              className="size-4 text-primary"
-            />
-          )}
-          {section.title}
+          <DetailCardHeading assetId={assetId} section={section} />
           {section.readOnly && (
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
               <LockKeyhole aria-hidden className="size-3" />

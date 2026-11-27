@@ -3,7 +3,10 @@
 import { RefreshCw, X } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { runSyncNow } from "@/app/(app)/admin/sync/actions";
-import { SyncingCloud } from "@/components/assets/asset-icons";
+import {
+  SYNC_ANIMATION_MS,
+  SyncingCloud,
+} from "@/components/assets/asset-icons";
 import { Button } from "@/components/ui/button";
 import type { SyncMessage } from "@/lib/sync/sync-run";
 import { cn } from "@/lib/utils";
@@ -12,8 +15,14 @@ import { cn } from "@/lib/utils";
 // it is dismissed, so it can be read.
 const SUCCESS_MESSAGE_MS = 5000;
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Runs a sync and keeps what it said: shared by the sync buttons and the
-// Intune badge on an asset's page.
+// Intune card's title on an asset's page. "Syncing" lasts at least one trip
+// of the cloud's colors, so a sync of one device (a fraction of a second)
+// still shows it moving.
 export function useSyncAction(action: () => Promise<SyncMessage>) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<SyncMessage | null>(null);
@@ -26,7 +35,10 @@ export function useSyncAction(action: () => Promise<SyncMessage>) {
 
   function run() {
     setMessage(null);
-    startTransition(async () => setMessage(await action()));
+    startTransition(async () => {
+      const [result] = await Promise.all([action(), wait(SYNC_ANIMATION_MS)]);
+      setMessage(result);
+    });
   }
 
   return { isPending, message, run, dismiss: () => setMessage(null) };

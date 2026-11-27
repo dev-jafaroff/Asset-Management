@@ -12,6 +12,9 @@ export type AssetTypeConfig = {
   singularLabel: string;
   tagPrefix: string | null;
   assignTo: AssignTarget;
+  // Every device of this type should be enrolled in Intune; one the sync has
+  // not linked yet is marked "Not in Intune".
+  enrolledInIntune?: boolean;
 };
 
 export const assetTypeConfigs: readonly AssetTypeConfig[] = [
@@ -22,6 +25,7 @@ export const assetTypeConfigs: readonly AssetTypeConfig[] = [
     singularLabel: "PC",
     tagPrefix: "PC-",
     assignTo: "user",
+    enrolledInIntune: true,
   },
   {
     type: "MONITOR",

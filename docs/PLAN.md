@@ -200,7 +200,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [x] Show the Intune user as an assignment suggestion: a hint on the asset page (checkout preselects them when the asset is free) and "Holder differs from Intune" on the dashboard; the holder is never changed automatically
 - [x] "Sync from Intune" on the Azure sync page and `POST /api/cron/intune-sync`
 - [ ] Schedule the Intune sync (hourly) on the chosen host
-- [x] Sync one device from its detail page: clicking the Intune badge pulls that device from Graph; the cloud icon animates while it runs
+- [x] Sync one device from its detail page: clicking the Intune card's title pulls that device from Graph; the cloud's outline cycles through colors while it runs. A PC not linked to Intune yet is marked "Not in Intune"; a Snipe-IT import shows only in the history
 - [ ] Keep the last sync error per asset (e.g. `lastIntuneSyncError`) and show it in the Intune card
 - [ ] "Request device check-in" in the Intune card (Graph `syncDevice`, needs `DeviceManagementManagedDevices.PrivilegedOperations.All`)
 - [x] Sync log page (`SyncRun`): the Azure sync page (`/admin/sync`) runs each sync and lists recent runs; each sync is one entry in `lib/sync/sync-jobs.ts`

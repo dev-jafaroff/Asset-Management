@@ -2,7 +2,11 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { AssetSource, AssetType } from "@/lib/generated/prisma/enums";
-import { getAssetPath, getAssetTypeBySlug } from "@/lib/assets/asset-types";
+import {
+  getAssetPath,
+  getAssetTypeBySlug,
+  getAssetTypeConfig,
+} from "@/lib/assets/asset-types";
 import { assetListSelect } from "@/lib/assets/queries";
 import {
   formatModelName,
@@ -109,13 +113,6 @@ export function getCheckedOutAt(asset: AssetDetail): Date | null {
   return asset.events[0]?.createdAt ?? null;
 }
 
-// Where the record came from; manual records show no badge.
-const assetSourceLabels: Record<AssetSource, string | null> = {
-  MANUAL: null,
-  INTUNE: "Intune",
-  SNIPEIT: "Snipe-IT",
-};
-
 const INTUNE_DEVICE_URL =
   "https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsMenuBlade/~/overview/mdmDeviceId/";
 
@@ -161,28 +158,13 @@ export function getIntuneSyncStatus(
   return { state: "synced", label: "Checked in with Intune recently" };
 }
 
-export type AssetSourceBadge = {
-  source: AssetSource;
-  label: string;
-  // Intune records also show how fresh their data is.
-  syncStatus: IntuneSyncStatus | null;
-};
-
-// Badge next to the title: where the record's data comes from now. A device
-// linked to Intune shows Intune and how fresh its data is, even when it was
-// migrated from Snipe-IT (its history still says so).
-export function getAssetSourceBadge(
-  asset: AssetDetail,
-): AssetSourceBadge | null {
-  if (isIntuneManaged(asset)) {
-    return {
-      source: "INTUNE",
-      label: "Intune",
-      syncStatus: getIntuneSyncStatus(asset),
-    };
-  }
-  const label = assetSourceLabels[asset.source];
-  return label ? { source: asset.source, label, syncStatus: null } : null;
+// A device that should be in Intune (e.g. a PC) but is not linked to an
+// Intune device yet. A linked one has the Intune card instead.
+export function isNotInIntune(asset: AssetDetail): boolean {
+  return (
+    getAssetTypeConfig(asset.type).enrolledInIntune === true &&
+    !isIntuneManaged(asset)
+  );
 }
 
 // ─── Detail sections ─────────────────────────────────────────────────────────
@@ -203,8 +185,9 @@ export type DetailSection = {
   title: string;
   // System the fields come from; its icon is shown next to the title.
   source?: AssetSource;
-  // Colors that icon by how fresh the data is.
-  syncState?: IntuneSyncState;
+  // How fresh the data is: colors that icon, and editors can sync the record
+  // from the title.
+  syncStatus?: IntuneSyncStatus;
   // Opens the record in that system.
   link?: { label: string; href: string };
   // Fields owned by another system (e.g. Intune) cannot be edited here.
@@ -302,7 +285,7 @@ function buildIntuneSection(asset: AssetDetail): DetailSection | null {
   return {
     title: "Intune",
     source: "INTUNE",
-    syncState: syncStatus.state,
+    syncStatus,
     readOnly: true,
     link: intuneUrl ? { label: "Open in Intune", href: intuneUrl } : undefined,
     fields: [

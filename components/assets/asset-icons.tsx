@@ -164,6 +164,7 @@ const syncColors = ["#f25022", "#7fba00", "#00a4ef", "#ffb900"];
 const SEGMENT = 100 / syncColors.length;
 // One trip around the cloud.
 const CHASE_SECONDS = 1.6;
+export const SYNC_ANIMATION_MS = CHASE_SECONDS * 1000;
 
 // The Intune cloud while it syncs: it stays still and its outline cycles
 // through the colors, clockwise. Every segment runs the same animation, a
@@ -189,9 +190,10 @@ export function SyncingCloud({ className }: { className?: string }) {
           strokeDasharray={`${SEGMENT} ${100 - SEGMENT}`}
           strokeDashoffset={-index * SEGMENT}
           style={{
-            animation: `outline-chase ${CHASE_SECONDS}s linear ${(-index * CHASE_SECONDS) / syncColors.length}s infinite`,
+            animationDuration: `${CHASE_SECONDS}s`,
+            animationDelay: `${(-index * CHASE_SECONDS) / syncColors.length}s`,
           }}
-          className="motion-reduce:animate-none!"
+          className="animate-outline-chase motion-reduce:animate-none"
         />
       ))}
     </svg>
