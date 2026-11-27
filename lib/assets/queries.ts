@@ -1,6 +1,5 @@
 import { cache } from "react";
 import { Prisma } from "@/lib/generated/prisma/client";
-import { assetTypeConfigs } from "@/lib/assets/asset-types";
 import {
   buildAssetFilterWhere,
   parseAssetFilters,
@@ -178,22 +177,6 @@ export async function listAssetsForExport(
     select: assetExportSelect,
     orderBy: assetListOrder,
   });
-}
-
-export async function countAssetsByType(): Promise<Record<AssetType, number>> {
-  const groups = await prisma.asset.groupBy({
-    by: ["type"],
-    _count: { _all: true },
-  });
-
-  // Start every type at 0, so types without assets are still listed.
-  const counts = Object.fromEntries(
-    assetTypeConfigs.map((config) => [config.type, 0]),
-  ) as Record<AssetType, number>;
-  for (const group of groups) {
-    counts[group.type] = group._count._all;
-  }
-  return counts;
 }
 
 // Identifiers that must be unique across all assets.

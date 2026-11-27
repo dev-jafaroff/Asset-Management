@@ -5,12 +5,76 @@ import {
   type AssetEventWithAsset,
 } from "@/lib/assets/asset-detail";
 import { assetFormFieldLabels } from "@/lib/assets/asset-form";
-import { isIntuneHolderMismatch } from "@/lib/assets/format";
-import { assetListSelect } from "@/lib/assets/queries";
+import { assetTypeConfigs } from "@/lib/assets/asset-types";
+import {
+  getAssetDisplayStatus,
+  isIntuneHolderMismatch,
+} from "@/lib/assets/format";
+import { assetListSelect, listStatusLabels } from "@/lib/assets/queries";
+import { buildStatusTabs, toStatusSlug } from "@/lib/assets/status-filters";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import type { AssetType } from "@/lib/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { holdsItemsWhere } from "@/lib/users/queries";
 import { daysBetween } from "@/lib/utils";
+
+// ─── Assets by type ──────────────────────────────────────────────────────────
+
+// One status of one type, e.g. 13 PCs "In storage".
+export type TypeStatusCount = {
+  // The status tab of the type's list, e.g. "in-storage".
+  slug: string;
+  label: string;
+  color: string;
+  count: number;
+};
+
+export type TypeBreakdown = {
+  type: AssetType;
+  total: number;
+  // In the order of the list's status tabs, with assets only.
+  statuses: TypeStatusCount[];
+};
+
+// Every type with its assets per status, as the lists show it ("Assigned"
+// for a deployable asset that is handed out). Archived assets are left out:
+// they are no longer in use.
+export async function listTypeBreakdowns(): Promise<TypeBreakdown[]> {
+  const [assets, statusLabels] = await Promise.all([
+    prisma.asset.findMany({
+      where: { status: { type: { not: "ARCHIVED" } } },
+      select: {
+        type: true,
+        status: assetListSelect.status,
+        assignedTo: assetListSelect.assignedTo,
+        company: assetListSelect.company,
+        location: assetListSelect.location,
+      },
+    }),
+    listStatusLabels(),
+  ]);
+  const tabOrder = buildStatusTabs(statusLabels).map((tab) => tab.slug);
+
+  return assetTypeConfigs.map((config) => {
+    const counts = new Map<string, TypeStatusCount>();
+    for (const asset of assets) {
+      if (asset.type !== config.type) continue;
+      const status = getAssetDisplayStatus(asset);
+      const slug = toStatusSlug(status.label);
+      const known = counts.get(slug);
+      if (known) known.count++;
+      else counts.set(slug, { slug, ...status, count: 1 });
+    }
+    const statuses = [...counts.values()].sort(
+      (a, b) => tabOrder.indexOf(a.slug) - tabOrder.indexOf(b.slug),
+    );
+    return {
+      type: config.type,
+      total: statuses.reduce((sum, status) => sum + status.count, 0),
+      statuses,
+    };
+  });
+}
 
 // ─── Needs attention ─────────────────────────────────────────────────────────
 
