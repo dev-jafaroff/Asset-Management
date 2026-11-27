@@ -28,6 +28,7 @@ const assetDetailSelect = {
   missingInIntune: true,
   intuneId: true,
   intunePrimaryUser: true,
+  intuneSyncProblem: true,
   assignedTo: {
     select: {
       id: true,
@@ -159,7 +160,8 @@ export function getIntuneSyncStatus(
 }
 
 // A device that should be in Intune (e.g. a PC) but is not linked to an
-// Intune device yet. A linked one has the Intune card instead.
+// Intune device yet. A linked one has the Intune card instead (as has one
+// the sync found a problem with, to sync it again once fixed).
 export function isNotInIntune(asset: AssetDetail): boolean {
   return (
     getAssetTypeConfig(asset.type).enrolledInIntune === true &&
@@ -192,6 +194,8 @@ export type DetailSection = {
   link?: { label: string; href: string };
   // Fields owned by another system (e.g. Intune) cannot be edited here.
   readOnly?: boolean;
+  // What the last sync found wrong, shown above the fields.
+  problem?: string;
   fields: DetailField[];
 };
 
@@ -277,9 +281,30 @@ const typeSections: Record<
   OTHER: () => null,
 };
 
-// Shown for any asset linked to Intune, whatever its type or source.
+// An asset the sync could not link, e.g. as its serial differs from the
+// device named after its tag.
+const NOT_LINKED_STATUS: IntuneSyncStatus = {
+  state: "never",
+  label: "Not linked to an Intune device",
+};
+
+// Shown for any asset linked to Intune, whatever its type or source, and for
+// one the sync could not link: its problem, and the title to sync it again
+// once fixed.
 function buildIntuneSection(asset: AssetDetail): DetailSection | null {
-  if (!isIntuneManaged(asset)) return null;
+  const problem = asset.intuneSyncProblem ?? undefined;
+  if (!isIntuneManaged(asset)) {
+    return problem
+      ? {
+          title: "Intune",
+          source: "INTUNE",
+          syncStatus: NOT_LINKED_STATUS,
+          problem,
+          fields: [],
+        }
+      : null;
+  }
+
   const intuneUrl = getIntuneDeviceUrl(asset);
   const syncStatus = getIntuneSyncStatus(asset);
   return {
@@ -288,6 +313,7 @@ function buildIntuneSection(asset: AssetDetail): DetailSection | null {
     syncStatus,
     readOnly: true,
     link: intuneUrl ? { label: "Open in Intune", href: intuneUrl } : undefined,
+    problem,
     fields: [
       { label: "Device name", value: asset.name },
       { label: "OS", value: asset.operatingSystem },

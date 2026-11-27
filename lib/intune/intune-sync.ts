@@ -88,6 +88,7 @@ const assetSelect = {
   intunePrimaryUser: true,
   lastIntuneSync: true,
   missingInIntune: true,
+  intuneSyncProblem: true,
 } satisfies Prisma.AssetSelect;
 
 type SyncedAsset = Prisma.AssetGetPayload<{ select: typeof assetSelect }>;
@@ -176,7 +177,7 @@ function isSameTime(a: Date | null, b: Date | null): boolean {
   return (a?.getTime() ?? null) === (b?.getTime() ?? null);
 }
 
-// ─── Reading and matching ────────────────────────────────────────────────────
+// ─── Reading ─────────────────────────────────────────────────────────────────
 
 type DeviceRead = { devices: IntuneDevice[]; isEveryTenantRead: boolean };
 
@@ -206,19 +207,76 @@ async function readDevices(tally: SyncTally): Promise<DeviceRead> {
   return { devices, isEveryTenantRead };
 }
 
+// ─── Problems ────────────────────────────────────────────────────────────────
+
+// Something wrong with one asset, e.g. its serial typed differently here and
+// in Intune. Kept on the asset (intuneSyncProblem) until a sync finds it fine.
+type AssetProblem = { asset: SyncedAsset; text: string };
+
+// What a sync found wrong: about one asset, or about a device we do not have.
+type SyncProblems = { assets: AssetProblem[]; devices: string[] };
+
+// As listed in the sync's result, e.g. "PC-00137: The Intune device …".
+function describeAssetProblem({ asset, text }: AssetProblem): string {
+  return `${asset.assetTag ?? asset.serial ?? `#${asset.id}`}: ${text}`;
+}
+
+// Writes each asset's problem and clears it from the assets now fine: every
+// asset after a full sync, or only `assetId`. When not every tenant was read,
+// a problem may just not have been seen, so none is cleared.
+async function saveAssetProblems(
+  problems: AssetProblem[],
+  { assetId, clear }: { assetId?: number; clear: boolean },
+): Promise<void> {
+  const byAsset = new Map<number, { asset: SyncedAsset; texts: string[] }>();
+  for (const { asset, text } of problems) {
+    const known = byAsset.get(asset.id);
+    if (known) known.texts.push(text);
+    else byAsset.set(asset.id, { asset, texts: [text] });
+  }
+  const withProblems = [...byAsset.keys()];
+  // Only the problems that are new or changed are written.
+  const changed = [...byAsset.values()].flatMap(({ asset, texts }) => {
+    const text = texts.join(" ");
+    return asset.intuneSyncProblem === text ? [] : [{ id: asset.id, text }];
+  });
+
+  await prisma.$transaction([
+    ...(clear
+      ? [
+          prisma.asset.updateMany({
+            where: {
+              intuneSyncProblem: { not: null },
+              id: { notIn: withProblems, ...(assetId && { equals: assetId }) },
+            },
+            data: { intuneSyncProblem: null },
+          }),
+        ]
+      : []),
+    ...changed.map(({ id, text }) =>
+      prisma.asset.update({ where: { id }, data: { intuneSyncProblem: text } }),
+    ),
+  ]);
+}
+
+// ─── Matching ────────────────────────────────────────────────────────────────
+
 // Devices named after a tag (as they are, e.g. "PC-00137") whose serial is
 // not that asset's: usually a serial typed wrong here or in Snipe-IT.
 function findTagMismatch(
   device: IntuneDevice,
   byTag: Map<string, SyncedAsset>,
-): string | null {
+): AssetProblem | null {
   const asset = device.deviceName
     ? byTag.get(device.deviceName.toUpperCase())
     : undefined;
   if (!asset || !device.serialNumber) return null;
   const serial = normalizeSerial(device.serialNumber);
   if (asset.serial && normalizeSerial(asset.serial) === serial) return null;
-  return `${asset.assetTag}: the Intune device of that name has serial ${device.serialNumber}, this asset has ${asset.serial ?? "none"}.`;
+  return {
+    asset,
+    text: `The Intune device named ${device.deviceName} has serial ${device.serialNumber}; this asset has ${asset.serial ?? "none"}. Fix the serial, or rename the device.`,
+  };
 }
 
 type MatchResult = {
@@ -226,8 +284,7 @@ type MatchResult = {
   matches: Map<number, Match>;
   // Company devices no asset was found for.
   unmatched: IntuneDevice[];
-  // What looks wrong, e.g. a serial typed differently here and in Intune.
-  problems: string[];
+  problems: SyncProblems;
 };
 
 // Links the devices to the given assets: by serial (Windows, macOS), then by
@@ -249,7 +306,7 @@ function matchDevices(
   const result: MatchResult = {
     matches: new Map(),
     unmatched: [],
-    problems: [],
+    problems: { assets: [], devices: [] },
   };
 
   const withSerial = devices.filter((device) => reportsSerial(device));
@@ -258,7 +315,7 @@ function matchDevices(
   );
   for (const [serial, device] of bySerialKey) {
     const tagMismatch = findTagMismatch(device, byTag);
-    if (tagMismatch) result.problems.push(tagMismatch);
+    if (tagMismatch) result.problems.assets.push(tagMismatch);
     const asset = bySerial.get(serial);
     if (asset) {
       result.matches.set(asset.id, {
@@ -273,7 +330,7 @@ function matchDevices(
   }
   for (const device of withSerial) {
     if (!device.serialNumber && isCompanyDevice(device)) {
-      result.problems.push(
+      result.problems.devices.push(
         `${describeDevice(device)} has no serial in Intune, so it cannot be matched.`,
       );
     }
@@ -314,7 +371,12 @@ function describeUnmatched(device: IntuneDevice): string {
 
 // ─── Writing ─────────────────────────────────────────────────────────────────
 
-async function updateAsset(match: Match, tally: SyncTally): Promise<void> {
+// Writes what Intune owns of the asset, and its history. Returns the problem
+// when it cannot be linked.
+async function updateAsset(
+  match: Match,
+  tally: SyncTally,
+): Promise<AssetProblem | null> {
   const { asset, device } = match;
   const fields = toIntuneFields(match);
   const changes = getLoggedChanges(asset, fields);
@@ -324,7 +386,7 @@ async function updateAsset(match: Match, tally: SyncTally): Promise<void> {
     note !== null ||
     asset.intunePrimaryUser !== fields.intunePrimaryUser;
   if (!isNews && isSameTime(asset.lastIntuneSync, fields.lastIntuneSync)) {
-    return;
+    return null;
   }
 
   try {
@@ -344,18 +406,35 @@ async function updateAsset(match: Match, tally: SyncTally): Promise<void> {
         : []),
     ]);
     if (isNews) tally.updated++;
+    return null;
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      tally.errors.push(
-        `${asset.assetTag ?? asset.serial}: the Intune device ${describeDevice(device)} is already linked to another asset.`,
-      );
-      return;
+      return {
+        asset,
+        text: `The Intune device ${describeDevice(device)} is already linked to another asset.`,
+      };
     }
     throw error;
   }
+}
+
+// Updates the matched assets, and keeps the problems found with them on
+// each asset and in the result.
+async function writeMatches(
+  result: MatchResult,
+  tally: SyncTally,
+  scope: { assetId?: number; clear: boolean },
+): Promise<void> {
+  const problems = [...result.problems.assets];
+  for (const match of result.matches.values()) {
+    const problem = await updateAsset(match, tally);
+    if (problem) problems.push(problem);
+  }
+  await saveAssetProblems(problems, scope);
+  tally.errors.push(...problems.map(describeAssetProblem));
 }
 
 // Assets linked to Intune whose device is no longer there (wiped, retired,
@@ -403,12 +482,11 @@ async function syncDevicesFromIntune(tally: SyncTally): Promise<void> {
     // The new assets are linked like any other.
     result = matchDevices(devices, await loadAssets());
   }
+  await writeMatches(result, tally, { clear: isEveryTenantRead });
   tally.errors.push(
-    ...result.problems,
+    ...result.problems.devices,
     ...result.unmatched.map(describeUnmatched),
   );
-
-  for (const match of result.matches.values()) await updateAsset(match, tally);
 
   if (isEveryTenantRead) {
     await flagMissing(tally, { linked: new Set(result.matches.keys()) });
@@ -435,9 +513,16 @@ export async function syncIntuneAsset(assetId: number): Promise<SyncMessage> {
     return { ok: false, text: "This asset no longer exists.", errors: [] };
   }
 
-  const match = matchDevices(devices, [asset]).matches.get(asset.id);
-  if (match) await updateAsset(match, tally);
-  else if (isEveryTenantRead) await flagMissing(tally, { assetId: asset.id });
+  // Matched alone, so the problems found are about this asset only.
+  const result = matchDevices(devices, [asset]);
+  await writeMatches(result, tally, {
+    assetId: asset.id,
+    clear: isEveryTenantRead,
+  });
+  const match = result.matches.get(asset.id);
+  if (!match && isEveryTenantRead) {
+    await flagMissing(tally, { assetId: asset.id });
+  }
 
   // The device's own check-in can be old (e.g. at the service): say so, as
   // syncing again will not change it.

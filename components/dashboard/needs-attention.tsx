@@ -17,6 +17,7 @@ import {
   LONG_UNAVAILABLE_DAYS,
   listInactiveHolders,
   listIntuneHolderMismatches,
+  listIntuneSyncProblems,
   listLongUnavailableAssets,
   listMissingInIntune,
 } from "@/lib/dashboard/queries";
@@ -43,17 +44,18 @@ type AttentionGroup = {
 };
 
 // Things to follow up: assets out of use for long, people who left with
-// assets, devices held by someone other than Intune says, devices Intune
-// lost. Groups with nothing in them are left out.
+// assets, devices held by someone other than Intune says, devices the Intune
+// sync found a problem with or lost. Groups with nothing in them are left out.
 export async function NeedsAttention() {
   // Live data and today's date: rendered per request, never prerendered.
   await connection();
-  const [unavailable, inactiveHolders, missing, holderMismatches] =
+  const [unavailable, inactiveHolders, missing, holderMismatches, problems] =
     await Promise.all([
       listLongUnavailableAssets(),
       listInactiveHolders(),
       listMissingInIntune(),
       listIntuneHolderMismatches(),
+      listIntuneSyncProblems(),
     ]);
 
   const groups: AttentionGroup[] = [
@@ -97,6 +99,17 @@ export async function NeedsAttention() {
         icon: <AssetTypeIcon type={asset.type} />,
         label: getAssetDisplayName(asset),
         detail: `Intune: ${asset.intuneUser}`,
+      })),
+    },
+    {
+      title: "Intune sync problems",
+      hint: "Fix what the asset's Intune card says, then sync it from there.",
+      items: problems.map((asset) => ({
+        key: `problem-${asset.id}`,
+        href: getAssetPath(asset.type, asset.id),
+        icon: <AssetTypeIcon type={asset.type} />,
+        label: getAssetDisplayName(asset),
+        detail: asset.intuneSyncProblem ?? "",
       })),
     },
     {
@@ -170,7 +183,11 @@ function AttentionSection({ group }: { group: AttentionGroup }) {
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-primary">
                 {item.label}
               </span>
-              <span className="shrink-0 text-xs text-muted-foreground">
+              {/* A long detail (e.g. a sync problem) is cut, whole on hover. */}
+              <span
+                title={item.detail}
+                className="max-w-2/3 truncate text-xs text-muted-foreground"
+              >
                 {item.detail}
               </span>
             </Link>

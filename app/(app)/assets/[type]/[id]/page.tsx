@@ -5,6 +5,7 @@ import {
   LockKeyhole,
   MapPin,
   Pencil,
+  TriangleAlert,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -465,6 +466,23 @@ function renderFieldValue(field: DetailField): ReactNode {
   );
 }
 
+// What the last sync found wrong with the asset, e.g. its serial differs
+// from the Intune device named after its tag.
+function SectionProblem({ problem }: { problem: string }) {
+  return (
+    <p className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm">
+      <TriangleAlert
+        aria-hidden
+        className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400"
+      />
+      <span>
+        <span className="sr-only">Sync problem: </span>
+        {problem}
+      </span>
+    </p>
+  );
+}
+
 function DetailCard({
   assetId,
   section,
@@ -496,14 +514,17 @@ function DetailCard({
           </CardAction>
         )}
       </CardHeader>
-      <CardContent>
-        <DetailList
-          items={section.fields.map((field) => ({
-            label: field.label,
-            value: renderFieldValue(field),
-            mono: field.mono,
-          }))}
-        />
+      <CardContent className="flex flex-col gap-4">
+        {section.problem && <SectionProblem problem={section.problem} />}
+        {section.fields.length > 0 && (
+          <DetailList
+            items={section.fields.map((field) => ({
+              label: field.label,
+              value: renderFieldValue(field),
+              mono: field.mono,
+            }))}
+          />
+        )}
       </CardContent>
     </Card>
   );

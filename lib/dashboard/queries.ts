@@ -109,6 +109,21 @@ export function listMissingInIntune(): Promise<AttentionAsset[]> {
   });
 }
 
+// Assets the last Intune sync found a problem with, e.g. a serial that
+// differs from the Intune device named after the tag.
+export function listIntuneSyncProblems(): Promise<
+  (AttentionAsset & { intuneSyncProblem: string | null })[]
+> {
+  return prisma.asset.findMany({
+    where: {
+      intuneSyncProblem: { not: null },
+      status: { type: { not: "ARCHIVED" } },
+    },
+    select: { ...attentionAssetSelect, intuneSyncProblem: true },
+    orderBy: [{ assetTag: "asc" }, { id: "asc" }],
+  });
+}
+
 export type IntuneHolderMismatch = AttentionAsset & {
   // Intune's primary user: their name when they work here, else the email.
   intuneUser: string;
