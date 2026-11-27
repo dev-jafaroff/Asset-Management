@@ -175,6 +175,10 @@ model Asset {
   // The device's primary user in Intune (their sign-in name), shown as a
   // suggestion: the holder is never changed by the sync.
   intunePrimaryUser String?
+  // What the last Intune sync found wrong with this asset (e.g. the Intune
+  // device named after its tag has another serial), until a sync finds it
+  // fine. Shown in its Intune card.
+  intuneSyncProblem String?
   legacySnipeId     Int?        @unique
 
   statusId     Int
