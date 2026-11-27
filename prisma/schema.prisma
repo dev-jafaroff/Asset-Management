@@ -170,6 +170,9 @@ model Asset {
   // Set by the Intune sync once the serial is found in Intune; the asset is
   // then managed by Intune, whatever its source.
   intuneId          String?     @unique
+  // The Intune tenant (EIG or Waverity) the device is enrolled in, where
+  // actions on it (e.g. a check-in request) are sent.
+  intuneTenantId    String?
   lastIntuneSync    DateTime?
   missingInIntune   Boolean     @default(false)
   // The device's primary user in Intune (their sign-in name), shown as a

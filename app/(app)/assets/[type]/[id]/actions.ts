@@ -14,7 +14,7 @@ import {
   type AssetFormErrors,
 } from "@/lib/assets/asset-form";
 import { getAssetPath } from "@/lib/assets/asset-types";
-import { isIntuneManaged } from "@/lib/assets/format";
+import { canRequestIntuneCheckIn, isIntuneManaged } from "@/lib/assets/format";
 import {
   checkInAsset,
   checkOutAsset,
@@ -26,6 +26,7 @@ import {
 } from "@/lib/assets/queries";
 import { getCurrentUser } from "@/lib/current-user";
 import { can } from "@/lib/permissions";
+import { requestDeviceCheckIn } from "@/lib/intune/devices";
 import { syncIntuneAsset } from "@/lib/intune/intune-sync";
 import { prisma } from "@/lib/prisma";
 import {
@@ -214,7 +215,62 @@ export async function submitCheckin(
   return null;
 }
 
-// The Intune badge on an asset's page: pulls that one device from Intune now.
+// "Request check-in" in the Intune card: asks the device itself to check in
+// with Intune, in the tenant it is enrolled in, and notes who asked in its
+// history. The new data arrives with a later sync.
+export async function requestIntuneCheckIn(
+  assetId: number,
+): Promise<SyncMessage> {
+  const user = await getCurrentUser();
+  if (!can(user.role, "asset:edit")) {
+    return {
+      ok: false,
+      text: "You do not have permission to manage devices.",
+      errors: [],
+    };
+  }
+  const id = assetIdSchema.safeParse(assetId);
+  if (!id.success) return { ok: false, text: "Unknown asset.", errors: [] };
+
+  const asset = await prisma.asset.findUnique({
+    where: { id: id.data },
+    select: { intuneId: true, intuneTenantId: true, missingInIntune: true },
+  });
+  if (!asset || !canRequestIntuneCheckIn(asset)) {
+    return {
+      ok: false,
+      text: "This asset is not linked to a device in Intune.",
+      errors: [],
+    };
+  }
+
+  try {
+    await requestDeviceCheckIn(asset.intuneTenantId, asset.intuneId);
+  } catch (error) {
+    return {
+      ok: false,
+      text: "Intune did not take the request.",
+      errors: [error instanceof Error ? error.message : String(error)],
+    };
+  }
+  await prisma.assetEvent.create({
+    data: {
+      assetId: id.data,
+      type: "SYNC",
+      actorId: user.id,
+      note: "Check-in with Intune requested.",
+    },
+  });
+  refresh();
+  return {
+    ok: true,
+    text: "Check-in requested. The device checks in when it is next online, usually within minutes; sync it then to see the new data.",
+    errors: [],
+  };
+}
+
+// The Intune card's title on an asset's page: pulls that one device from
+// Intune now.
 export async function syncAssetFromIntune(
   assetId: number,
 ): Promise<SyncMessage> {
