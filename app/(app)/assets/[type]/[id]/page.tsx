@@ -43,8 +43,10 @@ import {
   buildDetailSections,
   getAssetSourceBadge,
   getCheckedOutAt,
+  getIntuneHolderSuggestion,
   getRouteAsset,
   type AssetDetail,
+  type IntuneHolderSuggestion,
   type DetailField,
   type DetailSection,
 } from "@/lib/assets/asset-detail";
@@ -141,7 +143,10 @@ function AssetPageFallback() {
 
 async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
   const asset = await loadAsset(params);
-  const user = await getCurrentUser();
+  const [user, suggestion] = await Promise.all([
+    getCurrentUser(),
+    getIntuneHolderSuggestion(asset),
+  ]);
   const config = getAssetTypeConfig(asset.type);
   const title = getAssetDisplayName(asset);
 
@@ -190,7 +195,7 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
       <AssetDetailGrid
         main={
           <>
-            <AssignmentCard asset={asset} />
+            <AssignmentCard asset={asset} suggestion={suggestion} />
             <div className="grid items-start gap-4 lg:grid-cols-2">
               {buildDetailSections(asset).map((section) => (
                 <DetailCard key={section.title} section={section} />
@@ -252,7 +257,13 @@ const holderDetails: Record<AssignTarget, (asset: AssetDetail) => ReactNode> = {
 
 // Check out when the asset is free, check in when it is handed out.
 // The lists are only loaded for people who may use them.
-async function AssignmentActions({ asset }: { asset: AssetDetail }) {
+type AssignmentProps = {
+  asset: AssetDetail;
+  // Intune's primary user, when it is not who holds the asset.
+  suggestion: IntuneHolderSuggestion | null;
+};
+
+async function AssignmentActions({ asset, suggestion }: AssignmentProps) {
   const { assignTo } = getAssetTypeConfig(asset.type);
   const holder = getAssetHolder(asset);
   const assetName = getAssetDisplayName(asset);
@@ -276,12 +287,45 @@ async function AssignmentActions({ asset }: { asset: AssetDetail }) {
       description={`Choose the ${assignTo} it goes to.`}
       assignTo={assignTo}
       holders={await getHolderOptions(assignTo)}
+      // Intune's primary user, ready to confirm.
+      defaultHolderId={suggestion?.user?.id}
       onSubmit={submitCheckout.bind(null, asset.id)}
     />
   );
 }
 
-function AssignmentCard({ asset }: { asset: AssetDetail }) {
+// Who Intune says uses the device, when that is not its holder here. The
+// holder is changed by hand: checkout preselects them when it is free.
+function IntuneHolderHint({
+  suggestion,
+}: {
+  suggestion: IntuneHolderSuggestion;
+}) {
+  const name = suggestion.user?.displayName ?? suggestion.email;
+  const advice = suggestion.isHeldByOther
+    ? "Check it in and out to change the holder."
+    : suggestion.user
+      ? "Check out suggests them."
+      : null;
+
+  return (
+    <p className="mt-4 flex items-start gap-2 border-t pt-3 text-xs text-muted-foreground">
+      <SourceIcon
+        source="INTUNE"
+        className="mt-px size-3.5 shrink-0 text-primary"
+      />
+      <span>
+        Intune&apos;s primary user is{" "}
+        <span className="font-medium text-foreground">{name}</span>
+        {!suggestion.user && " (not among the employees)"}
+        {suggestion.isHeldByOther ? ", not the holder." : "."}
+        {advice && ` ${advice}`}
+      </span>
+    </p>
+  );
+}
+
+function AssignmentCard({ asset, suggestion }: AssignmentProps) {
   const { assignTo } = getAssetTypeConfig(asset.type);
   const holder = getAssetHolder(asset);
   const checkedOutAt = getCheckedOutAt(asset);
@@ -294,7 +338,7 @@ function AssignmentCard({ asset }: { asset: AssetDetail }) {
         <CardTitle>Assignment</CardTitle>
         <CardAction>
           <RequirePermission permission="asset:edit">
-            <AssignmentActions asset={asset} />
+            <AssignmentActions asset={asset} suggestion={suggestion} />
           </RequirePermission>
         </CardAction>
       </CardHeader>
@@ -328,6 +372,7 @@ function AssignmentCard({ asset }: { asset: AssetDetail }) {
             </div>
           </div>
         )}
+        {suggestion && <IntuneHolderHint suggestion={suggestion} />}
       </CardContent>
     </Card>
   );

@@ -16,6 +16,7 @@ import { getAssetDisplayName } from "@/lib/assets/format";
 import {
   LONG_UNAVAILABLE_DAYS,
   listInactiveHolders,
+  listIntuneHolderMismatches,
   listLongUnavailableAssets,
   listMissingInIntune,
 } from "@/lib/dashboard/queries";
@@ -42,15 +43,18 @@ type AttentionGroup = {
 };
 
 // Things to follow up: assets out of use for long, people who left with
-// assets, devices Intune lost. Groups with nothing in them are left out.
+// assets, devices held by someone other than Intune says, devices Intune
+// lost. Groups with nothing in them are left out.
 export async function NeedsAttention() {
   // Live data and today's date: rendered per request, never prerendered.
   await connection();
-  const [unavailable, inactiveHolders, missing] = await Promise.all([
-    listLongUnavailableAssets(),
-    listInactiveHolders(),
-    listMissingInIntune(),
-  ]);
+  const [unavailable, inactiveHolders, missing, holderMismatches] =
+    await Promise.all([
+      listLongUnavailableAssets(),
+      listInactiveHolders(),
+      listMissingInIntune(),
+      listIntuneHolderMismatches(),
+    ]);
 
   const groups: AttentionGroup[] = [
     {
@@ -82,6 +86,17 @@ export async function NeedsAttention() {
         ]
           .filter(Boolean)
           .join(" · "),
+      })),
+    },
+    {
+      title: "Holder differs from Intune",
+      hint: "Intune's primary user is someone else, or it is not checked out.",
+      items: holderMismatches.map((asset) => ({
+        key: `holder-${asset.id}`,
+        href: getAssetPath(asset.type, asset.id),
+        icon: <AssetTypeIcon type={asset.type} />,
+        label: getAssetDisplayName(asset),
+        detail: `Intune: ${asset.intuneUser}`,
       })),
     },
     {

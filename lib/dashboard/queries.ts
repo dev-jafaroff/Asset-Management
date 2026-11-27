@@ -5,6 +5,7 @@ import {
   type AssetEventWithAsset,
 } from "@/lib/assets/asset-detail";
 import { assetFormFieldLabels } from "@/lib/assets/asset-form";
+import { isIntuneHolderMismatch } from "@/lib/assets/format";
 import { assetListSelect } from "@/lib/assets/queries";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -106,6 +107,47 @@ export function listMissingInIntune(): Promise<AttentionAsset[]> {
     select: attentionAssetSelect,
     orderBy: [{ assetTag: "asc" }, { id: "asc" }],
   });
+}
+
+export type IntuneHolderMismatch = AttentionAsset & {
+  // Intune's primary user: their name when they work here, else the email.
+  intuneUser: string;
+};
+
+// Devices whose Intune primary user is not who holds them here
+// (isIntuneHolderMismatch), to check out to the right person.
+export async function listIntuneHolderMismatches(): Promise<
+  IntuneHolderMismatch[]
+> {
+  const assets = await prisma.asset.findMany({
+    where: {
+      intunePrimaryUser: { not: null },
+      missingInIntune: false,
+      status: { type: { not: "ARCHIVED" } },
+    },
+    select: {
+      ...attentionAssetSelect,
+      intunePrimaryUser: true,
+      assignedTo: { select: { email: true } },
+      status: { select: { name: true, type: true } },
+    },
+    orderBy: [{ assetTag: "asc" }, { id: "asc" }],
+  });
+  const mismatched = assets.filter(isIntuneHolderMismatch);
+  const users = await prisma.user.findMany({
+    where: {
+      email: {
+        in: mismatched.flatMap((asset) => asset.intunePrimaryUser ?? []),
+      },
+    },
+    select: { email: true, displayName: true },
+  });
+  const names = new Map(users.map((user) => [user.email, user.displayName]));
+  return mismatched.map((asset) => ({
+    ...asset,
+    intuneUser:
+      names.get(asset.intunePrimaryUser ?? "") ?? asset.intunePrimaryUser ?? "",
+  }));
 }
 
 // ─── Recent activity ─────────────────────────────────────────────────────────

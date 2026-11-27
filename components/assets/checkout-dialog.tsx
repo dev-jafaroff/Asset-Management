@@ -42,6 +42,8 @@ type CheckoutDialogProps = {
   assignTo: AssignTarget;
   // The people, companies or locations it can go to.
   holders: Choice[];
+  // Chosen when the dialog opens, e.g. the device's Intune primary user.
+  defaultHolderId?: number;
   disabled?: boolean;
   onSubmit: AssignmentSubmit<CheckoutValues>;
 };
@@ -52,10 +54,13 @@ export function CheckoutDialog({
   description,
   assignTo,
   holders,
+  defaultHolderId,
   disabled,
   onSubmit,
 }: CheckoutDialogProps) {
-  const [holderId, setHolderId] = useState<number | null>(null);
+  const [holderId, setHolderId] = useState<number | null>(
+    defaultHolderId ?? null,
+  );
   const holderField = holderFields[assignTo];
 
   return (
@@ -66,7 +71,7 @@ export function CheckoutDialog({
       title={title}
       description={description}
       submitLabel="Check out"
-      onOpen={() => setHolderId(null)}
+      onOpen={() => setHolderId(defaultHolderId ?? null)}
       onSubmit={(note) => onSubmit({ holderId, note })}
     >
       {(fieldErrors, clearFieldError) => (

@@ -6,6 +6,7 @@ import { getAssetPath, getAssetTypeBySlug } from "@/lib/assets/asset-types";
 import { assetListSelect } from "@/lib/assets/queries";
 import {
   formatModelName,
+  isIntuneHolderMismatch,
   isIntuneManaged,
   joinOsName,
 } from "@/lib/assets/format";
@@ -22,6 +23,7 @@ const assetDetailSelect = {
   lastIntuneSync: true,
   missingInIntune: true,
   intuneId: true,
+  intunePrimaryUser: true,
   assignedTo: {
     select: {
       id: true,
@@ -76,6 +78,31 @@ export async function getLegacyAssetPath(
     select: { id: true, type: true },
   });
   return asset ? getAssetPath(asset.type, asset.id) : null;
+}
+
+// Intune's primary user, when they should perhaps hold the asset instead
+// (isIntuneHolderMismatch): our user with that email if they are an active
+// employee, else only the email.
+export type IntuneHolderSuggestion = {
+  email: string;
+  user: { id: number; displayName: string } | null;
+  // Someone else holds it; otherwise nobody does.
+  isHeldByOther: boolean;
+};
+
+export async function getIntuneHolderSuggestion(
+  asset: AssetDetail,
+): Promise<IntuneHolderSuggestion | null> {
+  if (!asset.intunePrimaryUser || !isIntuneHolderMismatch(asset)) return null;
+  const user = await prisma.user.findFirst({
+    where: { email: asset.intunePrimaryUser, isActive: true },
+    select: { id: true, displayName: true },
+  });
+  return {
+    email: asset.intunePrimaryUser,
+    user,
+    isHeldByOther: asset.assignedTo !== null,
+  };
 }
 
 export function getCheckedOutAt(asset: AssetDetail): Date | null {
