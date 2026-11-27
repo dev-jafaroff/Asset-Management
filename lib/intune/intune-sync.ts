@@ -85,6 +85,7 @@ const assetSelect = {
   secondaryOperatingSystem: true,
   secondaryOsVersion: true,
   intuneId: true,
+  intuneTenantId: true,
   intunePrimaryUser: true,
   lastIntuneSync: true,
   missingInIntune: true,
@@ -117,6 +118,7 @@ type IntuneFields = Pick<
   | "secondaryOperatingSystem"
   | "secondaryOsVersion"
   | "intuneId"
+  | "intuneTenantId"
   | "intunePrimaryUser"
   | "lastIntuneSync"
   | "missingInIntune"
@@ -134,6 +136,7 @@ function toIntuneFields({
     secondaryOperatingSystem: secondary?.operatingSystem ?? null,
     secondaryOsVersion: secondary?.osVersion ?? null,
     intuneId: device.id,
+    intuneTenantId: device.tenantId,
     intunePrimaryUser: device.userPrincipalName
       ? normalizeEmail(device.userPrincipalName)
       : null,
@@ -385,7 +388,13 @@ async function updateAsset(
     changes.length > 0 ||
     note !== null ||
     asset.intunePrimaryUser !== fields.intunePrimaryUser;
-  if (!isNews && isSameTime(asset.lastIntuneSync, fields.lastIntuneSync)) {
+  // The check-in time and the tenant (filled in once for devices linked
+  // before it was kept) are written without counting as an update.
+  if (
+    !isNews &&
+    isSameTime(asset.lastIntuneSync, fields.lastIntuneSync) &&
+    asset.intuneTenantId === fields.intuneTenantId
+  ) {
     return null;
   }
 

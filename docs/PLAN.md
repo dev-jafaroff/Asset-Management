@@ -202,7 +202,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [ ] Schedule the Intune sync (hourly) on the chosen host
 - [x] Sync one device from its detail page: clicking the Intune card's title pulls that device from Graph; the cloud's outline cycles through colors while it runs. A PC not linked to Intune yet is marked "Not in Intune"; a Snipe-IT import shows only in the history
 - [x] Keep the last sync problem per asset (`intuneSyncProblem`, e.g. the device named after its tag has another serial) until a sync finds it fine; shown in the Intune card (also for an asset it could not link, to sync it again once fixed) and under "Intune sync problems" on the dashboard
-- [ ] "Request device check-in" in the Intune card (Graph `syncDevice`, needs `DeviceManagementManagedDevices.PrivilegedOperations.All`)
+- [x] "Request check-in" in the Intune card (Graph `syncDevice` with `DeviceManagementManagedDevices.PrivilegedOperations.All`, granted in both tenants), sent to the tenant the device is enrolled in (`intuneTenantId`, kept by the sync) and noted in the asset's history
 - [x] Sync log page (`SyncRun`): the Azure sync page (`/admin/sync`) runs each sync and lists recent runs; each sync is one entry in `lib/sync/sync-jobs.ts`
 - [x] User sync from Entra ID (`User.Read.All` + `GroupMember.Read.All` Application permissions): members of the employees group; name, email, department, job title; "Sync from Entra" on the Azure sync page and `POST /api/cron/user-sync`
 - [ ] Schedule the user sync (daily) on the chosen host

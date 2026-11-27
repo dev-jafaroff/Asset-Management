@@ -27,6 +27,7 @@ const assetDetailSelect = {
   lastIntuneSync: true,
   missingInIntune: true,
   intuneId: true,
+  intuneTenantId: true,
   intunePrimaryUser: true,
   intuneSyncProblem: true,
   assignedTo: {

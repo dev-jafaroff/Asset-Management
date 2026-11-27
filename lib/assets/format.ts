@@ -88,6 +88,24 @@ export function isIntuneManaged(asset: { intuneId: string | null }): boolean {
   return asset.intuneId !== null;
 }
 
+type IntuneDeviceLink = {
+  intuneId: string | null;
+  intuneTenantId: string | null;
+  missingInIntune: boolean;
+};
+
+// The device can be asked to check in: it is still in Intune, and the sync
+// has noted which tenant it is enrolled in.
+export function canRequestIntuneCheckIn<T extends IntuneDeviceLink>(
+  asset: T,
+): asset is T & { intuneId: string; intuneTenantId: string } {
+  return (
+    asset.intuneId !== null &&
+    asset.intuneTenantId !== null &&
+    !asset.missingInIntune
+  );
+}
+
 // joinOsName("Windows", "10.0.26100") → "Windows 10.0.26100"
 export function joinOsName(
   system: string | null,

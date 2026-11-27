@@ -19,6 +19,7 @@ import {
   submitCheckout,
 } from "@/app/(app)/assets/[type]/[id]/actions";
 import { AssetTypeIcon, SourceIcon } from "@/components/assets/asset-icons";
+import { IntuneCheckInButton } from "@/components/assets/intune-check-in-button";
 import { IntuneSyncTitle } from "@/components/assets/intune-sync-title";
 import { AssetNotesCard } from "@/components/assets/asset-notes-card";
 import { CheckinDialog } from "@/components/assets/checkin-dialog";
@@ -61,6 +62,7 @@ import {
   type AssignTarget,
 } from "@/lib/assets/asset-types";
 import {
+  canRequestIntuneCheckIn,
   formatModelName,
   getAssetDisplayName,
   getAssetDisplayStatus,
@@ -204,6 +206,11 @@ async function AssetPageContent({ params }: Pick<AssetPageProps, "params">) {
                   key={section.title}
                   assetId={asset.id}
                   section={section}
+                  footer={
+                    section.source === "INTUNE" && (
+                      <IntuneCardFooter asset={asset} />
+                    )
+                  }
                 />
               ))}
             </div>
@@ -483,12 +490,25 @@ function SectionProblem({ problem }: { problem: string }) {
   );
 }
 
+// Under the Intune card's fields: editors can ask the device to check in.
+function IntuneCardFooter({ asset }: { asset: AssetDetail }) {
+  if (!canRequestIntuneCheckIn(asset)) return null;
+  return (
+    <RequirePermission permission="asset:edit">
+      <IntuneCheckInButton assetId={asset.id} />
+    </RequirePermission>
+  );
+}
+
 function DetailCard({
   assetId,
   section,
+  footer,
 }: {
   assetId: number;
   section: DetailSection;
+  // Actions under the fields.
+  footer?: ReactNode;
 }) {
   return (
     <Card>
@@ -525,6 +545,7 @@ function DetailCard({
             }))}
           />
         )}
+        {footer}
       </CardContent>
     </Card>
   );

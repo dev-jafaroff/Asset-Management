@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { graphGetAll } from "@/lib/graph/client";
+import { graphGetAll, graphPostAction } from "@/lib/graph/client";
 
 // Devices managed by Intune, read from Graph with the app's own token
 // (DeviceManagementManagedDevices.Read.All, admin consent in each tenant).
@@ -85,6 +85,19 @@ export async function listIntuneDevices(
     else invalid++;
   }
   return { devices, invalid };
+}
+
+// Asks the device to check in with Intune now, as "Sync" in the Intune admin
+// center does (DeviceManagementManagedDevices.PrivilegedOperations.All). It
+// does so when it is next online, usually within minutes.
+export async function requestDeviceCheckIn(
+  tenantId: string,
+  deviceId: string,
+): Promise<void> {
+  await graphPostAction(
+    tenantId,
+    `/deviceManagement/managedDevices/${encodeURIComponent(deviceId)}/syncDevice`,
+  );
 }
 
 // e.g. "PC-00049 (Windows, serial 5CD311KCYM, HP Pavilion)", for messages.

@@ -2,7 +2,8 @@ import { z } from "zod";
 import { requireEnv } from "@/lib/env";
 
 // Microsoft Graph as the app itself (client credentials), for jobs that run
-// without anyone signed in: the user sync and, later, the Intune sync. Uses
+// without anyone signed in: the user and Intune syncs, and actions on Intune
+// devices. Uses
 // the sign-in app registration; its Application permissions decide what
 // may be read, per tenant, once that tenant's admin has consented.
 
@@ -93,17 +94,23 @@ function getRetryDelayMs(response: Response, attempt: number): number {
     : 2 ** attempt * 1000;
 }
 
-// One GET of a Graph path ("/users?…") or of a full nextLink URL.
-async function graphGet(tenantId: string, pathOrUrl: string): Promise<unknown> {
+// One request to a Graph path ("/users?…") or a full nextLink URL, retried
+// while Graph is throttling or briefly unavailable.
+async function graphRequest(
+  tenantId: string,
+  pathOrUrl: string,
+  method: "GET" | "POST" = "GET",
+): Promise<Response> {
   const url = pathOrUrl.startsWith("https://")
     ? pathOrUrl
     : `${GRAPH_URL}${pathOrUrl}`;
 
   for (let attempt = 0; ; attempt++) {
     const response = await fetch(url, {
+      method,
       headers: { Authorization: `Bearer ${await getAppToken(tenantId)}` },
     });
-    if (response.ok) return response.json();
+    if (response.ok) return response;
 
     if (RETRY_STATUSES.has(response.status) && attempt + 1 < MAX_ATTEMPTS) {
       await wait(getRetryDelayMs(response, attempt));
@@ -113,6 +120,18 @@ async function graphGet(tenantId: string, pathOrUrl: string): Promise<unknown> {
       `Graph refused ${new URL(url).pathname}: ${await readErrorMessage(response)}`,
     );
   }
+}
+
+async function graphGet(tenantId: string, pathOrUrl: string): Promise<unknown> {
+  return (await graphRequest(tenantId, pathOrUrl)).json();
+}
+
+// An action without a body or a reply, e.g. asking a device to check in.
+export async function graphPostAction(
+  tenantId: string,
+  path: string,
+): Promise<void> {
+  await graphRequest(tenantId, path, "POST");
 }
 
 const pageSchema = z.object({
