@@ -113,3 +113,23 @@ export function formatOperatingSystem(
   ].filter(Boolean);
   return systems.length > 0 ? systems.join(" · ") : null;
 }
+
+type IntuneHolderFields = {
+  type: AssetListItem["type"];
+  intunePrimaryUser: string | null;
+  assignedTo: { email: string } | null;
+  status: { type: AssetListItem["status"]["type"] };
+};
+
+// Whether Intune's primary user is worth suggesting as the holder: someone
+// else holds the device, or nobody does while it could be checked out (one
+// at the service keeps its Intune user, and that is fine). Only for types
+// held by people. The sync never changes the holder itself.
+export function isIntuneHolderMismatch(asset: IntuneHolderFields): boolean {
+  if (!asset.intunePrimaryUser) return false;
+  if (getAssetTypeConfig(asset.type).assignTo !== "user") return false;
+  if (asset.assignedTo) {
+    return asset.assignedTo.email !== asset.intunePrimaryUser;
+  }
+  return asset.status.type === "DEPLOYABLE";
+}

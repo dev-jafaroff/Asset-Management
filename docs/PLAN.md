@@ -197,7 +197,7 @@ not elevated. Port 3000 is free and `npm run dev` serves on http://localhost:300
 - [x] Graph client (client credentials, pagination); `npm run intune:inspect` reports what Intune holds and how it matches
 - [x] Sync logic (`lib/intune/intune-sync.ts`): match by serial (the latest check-in wins for a re-enrolled device); Linux sends no serial, so it is matched by device name = asset tag, and the Linux record of a dual-boot device gives its second OS and counts as a check-in; update; flag `missingInIntune` only after every tenant was read. A new device named after a free PC tag (IT names it after its label, e.g. `PC-00123`) is added with everything Intune knows (`lib/intune/new-devices.ts`): serial, model (by name, added when new), checked out to its Intune primary user, company guessed from the holder's other assets or email domain; Pending only without a holder; any other device we do not have, and a device named after a tag whose serial differs, is reported. Personal devices are ignored
 - [x] Field ownership: name, OS, OS version and check-in from Intune (locked in the form for any asset linked to Intune, whatever its source); business fields manual
-- [ ] Show the Intune user as an assignment suggestion
+- [x] Show the Intune user as an assignment suggestion: a hint on the asset page (checkout preselects them when the asset is free) and "Holder differs from Intune" on the dashboard; the holder is never changed automatically
 - [x] "Sync from Intune" on the Azure sync page and `POST /api/cron/intune-sync`
 - [ ] Schedule the Intune sync (hourly) on the chosen host
 - [x] Sync one device from its detail page: clicking the Intune badge pulls that device from Graph; the cloud icon animates while it runs
